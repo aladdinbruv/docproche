@@ -60,16 +60,16 @@ export default function Home() {
               <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-accent rounded-full blur-xl"></div>
               <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] shadow-xl">
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-transparent to-transparent mix-blend-overlay"></div>
-                <Image
+        <Image
                   src="/images/hero-doctor.jpg"
                   alt="Doctor with patient"
                   width={600}
                   height={500}
                   className="w-full object-cover aspect-[4/3]"
-                  priority
-                />
+          priority
+        />
               </div>
-              <div className="absolute -bottom-4 -left-4 bg-card rounded-lg shadow-lg p-3 border border-[var(--border)] flex items-center gap-3 max-w-[240px]">
+              <div className="absolute -bottom-4 -left-4 bg-[var(--card)] rounded-lg shadow-lg p-3 border border-[var(--border)] flex items-center gap-3 max-w-[240px]">
                 <div className="bg-success/20 p-2 rounded-full">
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
@@ -279,7 +279,7 @@ export default function Home() {
               <p>Same-Day Appointments</p>
             </div>
           </div>
-        </div>
+    </div>
       </section>
     </>
   );

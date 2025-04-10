@@ -60,8 +60,8 @@ The application uses the following core data models:
 
 3. Set up environment variables in `.env.local`:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   NEXT_PUBLIC_SUPABASE_URL=your-project-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    STRIPE_SECRET_KEY=your-stripe-secret-key
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
    STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
@@ -93,3 +93,45 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📧 Contact
 
 For questions or feedback, please reach out to us at contact@doctoproche.com.
+
+## Supabase Configuration
+
+This project uses Supabase for authentication, database, and real-time functionality. Follow these steps to connect it to your Supabase project:
+
+### 1. Configure Environment Variables
+
+1. Go to the [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project: `doctoproche` (Project ID: `cilrbqwwqaglszdnbshd`)
+3. Navigate to `Project Settings > API`
+4. Copy the `Project URL` and `anon` key
+5. Update your `.env.local` file with these values:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 2. Verify Connection
+
+1. Start your development server:
+   ```
+   npm run dev
+   ```
+2. Navigate to the Supabase test page:
+   ```
+   http://localhost:3000/supabase-test
+   ```
+3. The page will show whether your connection is working correctly
+
+### 3. Database Schema
+
+The database schema is defined in the SQL migration file at `supabase/migrations/20250410_initial_schema.sql`.
+
+You can apply this schema using the Supabase dashboard:
+
+1. Go to the [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project
+3. Navigate to `SQL Editor`
+4. Create a new query
+5. Copy the contents from `supabase/migrations/20250410_initial_schema.sql`
+6. Run the query

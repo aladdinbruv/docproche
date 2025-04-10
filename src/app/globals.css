@@ -87,10 +87,10 @@
 @layer base {
   * {
     @apply border-[var(--border)];
-  }
-  
-  body {
-    @apply bg-background text-foreground;
+}
+
+body {
+    @apply bg-[var(--background)] text-[var(--foreground)];
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
@@ -113,39 +113,49 @@
 
 @layer utilities {
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
+    @apply bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-4 py-2 transition-colors font-medium border border-[var(--border)];
+    @apply bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:bg-[var(--secondary)]/80 rounded-md px-4 py-2 transition-colors font-medium border border-[var(--border)];
   }
   
   .btn-accent {
-    @apply bg-accent text-accent-foreground hover:bg-accent/80 rounded-md px-4 py-2 transition-colors font-medium;
+    @apply bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent)]/80 rounded-md px-4 py-2 transition-colors font-medium;
   }
   
   .btn-success {
-    @apply bg-success text-success-foreground hover:bg-success/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
+    @apply bg-[var(--success)] text-[var(--success-foreground)] hover:bg-[var(--success)]/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
   }
   
   .btn-outline {
-    @apply border border-input bg-background hover:bg-secondary hover:text-secondary-foreground rounded-md px-4 py-2 transition-colors font-medium;
+    @apply border border-[var(--input)] bg-[var(--background)] hover:bg-[var(--secondary)] hover:text-[var(--secondary-foreground)] rounded-md px-4 py-2 transition-colors font-medium;
   }
 
   .btn-ghost {
-    @apply hover:bg-secondary hover:text-secondary-foreground rounded-md px-4 py-2 transition-colors font-medium;
+    @apply hover:bg-[var(--secondary)] hover:text-[var(--secondary-foreground)] rounded-md px-4 py-2 transition-colors font-medium;
   }
   
   .card {
-    @apply bg-card text-card-foreground rounded-lg border border-[var(--border)] shadow-sm;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   }
   
   .card-hover {
-    @apply hover:shadow-md transition-all duration-200;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  .card-hover:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
   
   .input {
-    @apply px-3 py-2 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input;
+    @apply px-3 py-2 rounded-md border border-[var(--input)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-[var(--input)];
   }
   
   /* Add this class to replace all border-border usage */
@@ -155,11 +165,39 @@
   
   /* Healthcare specific utilities */
   .doctor-card {
-    @apply card p-6 transition-all duration-200 hover:shadow-md;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  .doctor-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   }
   
   .appointment-item {
-    @apply card p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between;
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  @media (min-width: 768px) {
+    .appointment-item {
+      flex-direction: row;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+    }
   }
   
   .status-pill {
@@ -167,15 +205,15 @@
   }
   
   .status-pill-confirmed {
-    @apply bg-success/20 text-success;
+    @apply bg-[var(--success)]/20 text-[var(--success)];
   }
   
   .status-pill-pending {
-    @apply bg-warning/20 text-warning;
+    @apply bg-[var(--warning)]/20 text-[var(--warning)];
   }
   
   .status-pill-cancelled {
-    @apply bg-destructive/20 text-destructive;
+    @apply bg-[var(--destructive)]/20 text-[var(--destructive)];
   }
   
   .container-tight {
