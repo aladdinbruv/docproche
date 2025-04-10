@@ -1,24 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #0070f3;
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  --primary: #0ea5e9;
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717;
-  --accent: #f8fafc;
-  --accent-foreground: #171717;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --accent: #e0f2fe;
+  --accent-foreground: #0369a1;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
   --card: #ffffff;
-  --card-foreground: #171717;
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #0070f3;
+  --card-foreground: #1e293b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0ea5e9;
   --radius: 0.5rem;
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
 }
 
 @theme {
@@ -39,6 +45,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius: var(--radius);
@@ -46,27 +58,32 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --primary: #0070f3;
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --primary: #0ea5e9;
     --primary-foreground: #ffffff;
-    --secondary: #262626;
-    --secondary-foreground: #ededed;
-    --accent: #1e293b;
-    --accent-foreground: #ededed;
+    --secondary: #1e293b;
+    --secondary-foreground: #f1f5f9;
+    --accent: #0c4a6e;
+    --accent-foreground: #bae6fd;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --muted: #262626;
-    --muted-foreground: #a3a3a3;
-    --card: #171717;
-    --card-foreground: #ededed;
-    --border: #262626;
-    --input: #262626;
-    --ring: #0070f3;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --card: #1e293b;
+    --card-foreground: #f8fafc;
+    --border: #334155;
+    --input: #334155;
+    --ring: #0ea5e9;
+    --success: #10b981;
+    --success-foreground: #ffffff;
+    --warning: #f59e0b;
+    --warning-foreground: #ffffff;
+    --info: #3b82f6;
+    --info-foreground: #ffffff;
   }
 }
 
-/* Define the border-border class explicitly */
 @layer base {
   * {
     @apply border-[var(--border)];
@@ -76,27 +93,96 @@
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  
+  h1 {
+    @apply text-4xl lg:text-5xl;
+  }
+  
+  h2 {
+    @apply text-3xl lg:text-4xl;
+  }
+  
+  h3 {
+    @apply text-2xl;
+  }
 }
 
 @layer utilities {
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 transition-colors;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
   }
   
   .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-4 py-2 transition-colors;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-4 py-2 transition-colors font-medium border border-[var(--border)];
+  }
+  
+  .btn-accent {
+    @apply bg-accent text-accent-foreground hover:bg-accent/80 rounded-md px-4 py-2 transition-colors font-medium;
+  }
+  
+  .btn-success {
+    @apply bg-success text-success-foreground hover:bg-success/90 rounded-md px-4 py-2 transition-colors font-medium shadow-sm;
+  }
+  
+  .btn-outline {
+    @apply border border-input bg-background hover:bg-secondary hover:text-secondary-foreground rounded-md px-4 py-2 transition-colors font-medium;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-secondary hover:text-secondary-foreground rounded-md px-4 py-2 transition-colors font-medium;
   }
   
   .card {
     @apply bg-card text-card-foreground rounded-lg border border-[var(--border)] shadow-sm;
   }
   
+  .card-hover {
+    @apply hover:shadow-md transition-all duration-200;
+  }
+  
   .input {
-    @apply px-3 py-2 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring;
+    @apply px-3 py-2 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-input;
   }
   
   /* Add this class to replace all border-border usage */
   .app-border {
     border-color: var(--border);
+  }
+  
+  /* Healthcare specific utilities */
+  .doctor-card {
+    @apply card p-6 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .appointment-item {
+    @apply card p-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between;
+  }
+  
+  .status-pill {
+    @apply px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .status-pill-confirmed {
+    @apply bg-success/20 text-success;
+  }
+  
+  .status-pill-pending {
+    @apply bg-warning/20 text-warning;
+  }
+  
+  .status-pill-cancelled {
+    @apply bg-destructive/20 text-destructive;
+  }
+  
+  .container-tight {
+    @apply container mx-auto px-4 max-w-5xl;
+  }
+  
+  .section-padding {
+    @apply py-10 md:py-16;
   }
 }
