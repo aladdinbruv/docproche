@@ -1,22 +1,25 @@
 'use client';
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams, useRouter } from "next/navigation";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 export default function RegisterPage() {
   const { isLoading, setIsLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const role = searchParams.get('role') === 'doctor' ? 'doctor' : 'patient';
+  const captchaRef = useRef<HCaptcha>(null);
   
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    terms: false
+    terms: false,
+    captchaToken: ''
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +28,13 @@ export default function RegisterPage() {
     setFormData(prev => ({
       ...prev,
       [id]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleCaptchaVerify = (token: string) => {
+    setFormData(prev => ({
+      ...prev,
+      captchaToken: token
     }));
   };
 
@@ -48,6 +58,11 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!formData.captchaToken) {
+      setError("Please complete the captcha verification");
+      return;
+    }
+
     try {
       setIsLoading(true);
       
@@ -66,6 +81,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          captchaToken: formData.captchaToken,
           userData: {
             full_name: formData.fullName,
             role,
@@ -84,6 +100,9 @@ export default function RegisterPage() {
     } catch (err) {
       console.error("Registration error:", err);
       setError(err instanceof Error ? err.message : 'Failed to create account');
+      // Reset captcha on error
+      captchaRef.current?.resetCaptcha();
+      setFormData(prev => ({ ...prev, captchaToken: '' }));
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +116,7 @@ export default function RegisterPage() {
           <p className="text-muted-foreground mt-2">Sign up to get started with DocToProche</p>
         </div>
         
-        <div className="card p-6 space-y-6">
+        <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 space-y-6">
           <div className="flex gap-2 mb-4">
             <Link 
               href="/auth/register" 
@@ -201,10 +220,18 @@ export default function RegisterPage() {
               </label>
             </div>
             
+            <div className="mt-4 flex justify-center">
+              <HCaptcha
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001'}
+                onVerify={handleCaptchaVerify}
+                ref={captchaRef}
+              />
+            </div>
+            
             <button
               type="submit"
               className="btn-primary w-full"
-              disabled={isLoading}
+              disabled={isLoading || !formData.captchaToken}
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>

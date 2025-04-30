@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useState } from "react";
 
 interface NavLinkProps {
   href: string;
@@ -27,6 +29,13 @@ const NavLink = ({ href, children }: NavLinkProps) => {
 };
 
 export function Navbar() {
+  const { user, profile, signOut } = useAuth();
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  
+  const toggleProfileMenu = () => {
+    setIsProfileMenuOpen(!isProfileMenuOpen);
+  };
+
   return (
     <header className="border-b app-border sticky top-0 z-50 bg-background/95 backdrop-blur-sm shadow-sm">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -41,10 +50,11 @@ export function Navbar() {
             strokeLinejoin="round" 
             className="h-6 w-6 text-primary"
           >
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-            <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08v0c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
-            <path d="m18 15-2-2" />
-            <path d="m15 18-2-2" />
+            <path d="M8 2v4" />
+            <path d="M16 2v4" />
+            <path d="M3 10h18" />
+            <path d="M4 6h16a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />
+            <path d="M10 16h4" />
           </svg>
           <span>Doc<span className="text-primary">ToProche</span></span>
         </Link>
@@ -52,23 +62,125 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-1">
           <NavLink href="/">Home</NavLink>
           <NavLink href="/doctors">Find Doctors</NavLink>
+          <NavLink href="/appointments">My Appointments</NavLink>
+          <NavLink href="/health-records">Health Records</NavLink>
           <NavLink href="/about">About</NavLink>
           <NavLink href="/contact">Contact</NavLink>
         </nav>
         
         <div className="flex items-center gap-3">
           <Link 
-            href="/auth/login" 
-            className="btn-ghost text-foreground/90"
+            href="/book-appointment" 
+            className="btn-secondary flex items-center gap-1.5"
           >
-            Login
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="h-4 w-4"
+            >
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" />
+              <path d="M12 11h4" />
+              <path d="M12 16h4" />
+              <path d="M8 11h.01" />
+              <path d="M8 16h.01" />
+            </svg>
+            Book Appointment
           </Link>
-          <Link 
-            href="/auth/register" 
-            className="btn-primary"
-          >
-            Sign Up
-          </Link>
+          
+          {user ? (
+            <div className="relative">
+              <button 
+                onClick={toggleProfileMenu}
+                className="flex items-center gap-2 p-1 rounded-full hover:bg-secondary transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
+                  {profile?.profile_image ? (
+                    <img 
+                      src={profile.profile_image} 
+                      alt={profile.full_name || "User"} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium">
+                      {profile?.full_name?.charAt(0) || user.email?.charAt(0) || "U"}
+                    </span>
+                  )}
+                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-100">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium">{profile?.full_name || "User"}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                  <Link
+                    href="/dashboard"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    Profile Settings
+                  </Link>
+                  <Link
+                    href="/appointments"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    My Appointments
+                  </Link>
+                  <button
+                    onClick={() => {
+                      signOut();
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full text-left border-t border-gray-100"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link 
+                href="/auth/login" 
+                className="btn-ghost text-foreground/90"
+              >
+                Login
+              </Link>
+              <Link 
+                href="/auth/register" 
+                className="btn-primary"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -1,19 +1,22 @@
 'use client';
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "next/navigation";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 export default function LoginPage() {
   const { signIn, isLoading } = useAuth();
   const searchParams = useSearchParams();
   const role = searchParams.get('role') === 'doctor' ? 'doctor' : 'patient';
+  const captchaRef = useRef<HCaptcha>(null);
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    remember: false
+    remember: false,
+    captchaToken: ''
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -25,16 +28,31 @@ export default function LoginPage() {
     }));
   };
 
+  const handleCaptchaVerify = (token: string) => {
+    setFormData(prev => ({
+      ...prev,
+      captchaToken: token
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    if (!formData.captchaToken) {
+      setError("Please complete the captcha verification");
+      return;
+    }
+
     try {
       console.log("Attempting to login with:", formData.email);
-      await signIn(formData.email, formData.password);
+      await signIn(formData.email, formData.password, formData.captchaToken);
     } catch (err) {
       console.error("Login error:", err);
       setError(err instanceof Error ? err.message : 'Invalid email or password');
+      // Reset captcha on error
+      captchaRef.current?.resetCaptcha();
+      setFormData(prev => ({ ...prev, captchaToken: '' }));
     }
   };
 
@@ -46,7 +64,7 @@ export default function LoginPage() {
           <p className="text-muted-foreground mt-2">Log in to access your account</p>
         </div>
         
-        <div className="card p-6 space-y-6">
+        <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 space-y-6">
           <div className="flex gap-2 mb-4">
             <Link 
               href="/auth/login" 
@@ -118,10 +136,18 @@ export default function LoginPage() {
               </Link>
             </div>
             
+            <div className="mt-4 flex justify-center">
+              <HCaptcha
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY || '10000000-ffff-ffff-ffff-000000000001'}
+                onVerify={handleCaptchaVerify}
+                ref={captchaRef}
+              />
+            </div>
+            
             <button
               type="submit"
               className="btn-primary w-full"
-              disabled={isLoading}
+              disabled={isLoading || !formData.captchaToken}
             >
               {isLoading ? 'Logging in...' : 'Log In'}
             </button>

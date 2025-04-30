@@ -1,263 +1,253 @@
-import Link from "next/link";
-import Image from "next/image";
+"use client";
 
-// Sample doctor data, would come from database in real app
-const doctors = [
-  {
-    id: 1,
-    name: "Dr. Sarah Johnson",
-    specialty: "Cardiologist",
-    location: "New York, NY",
-    rating: 4.8,
-    experience: 12,
-    image: "/images/doctor-1.jpg",
-  },
-  {
-    id: 2,
-    name: "Dr. Michael Chen",
-    specialty: "Dermatologist",
-    location: "San Francisco, CA",
-    rating: 4.9,
-    experience: 15,
-    image: "/images/doctor-2.jpg",
-  },
-  {
-    id: 3,
-    name: "Dr. Emily Williams",
-    specialty: "Pediatrician",
-    location: "Chicago, IL",
-    rating: 4.7,
-    experience: 8,
-    image: "/images/doctor-3.jpg",
-  },
-  {
-    id: 4,
-    name: "Dr. Robert Smith",
-    specialty: "Orthopedic Surgeon",
-    location: "Boston, MA",
-    rating: 4.6,
-    experience: 20,
-    image: "/images/doctor-4.jpg",
-  },
-  {
-    id: 5,
-    name: "Dr. Lisa Rodriguez",
-    specialty: "Neurologist",
-    location: "Miami, FL",
-    rating: 4.8,
-    experience: 14,
-    image: "/images/doctor-5.jpg",
-  },
-  {
-    id: 6,
-    name: "Dr. David Park",
-    specialty: "Family Medicine",
-    location: "Seattle, WA",
-    rating: 4.7,
-    experience: 10,
-    image: "/images/doctor-6.jpg",
-  },
-];
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import { FaStar, FaMapMarkerAlt, FaUserMd, FaCalendarAlt } from "react-icons/fa";
+
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+  image: string;
+  location: string;
+  rating: number;
+  reviewCount: number;
+  price: number;
+  available: boolean;
+}
 
 export default function DoctorsPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [specialty, setSpecialty] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Mock API call to fetch doctors
+    setTimeout(() => {
+      setDoctors([
+        {
+          id: "d1",
+          name: "Dr. Sarah Johnson",
+          specialty: "Cardiologist",
+          image: "https://randomuser.me/api/portraits/women/76.jpg",
+          location: "New York Medical Center",
+          rating: 4.8,
+          reviewCount: 124,
+          price: 150,
+          available: true
+        },
+        {
+          id: "d2",
+          name: "Dr. Michael Williams",
+          specialty: "Dermatologist",
+          image: "https://randomuser.me/api/portraits/men/32.jpg",
+          location: "Manhattan Skin Clinic",
+          rating: 4.6,
+          reviewCount: 98,
+          price: 130,
+          available: true
+        },
+        {
+          id: "d3",
+          name: "Dr. Emily Roberts",
+          specialty: "Pediatrician",
+          image: "https://randomuser.me/api/portraits/women/45.jpg",
+          location: "Children's Medical Center",
+          rating: 4.9,
+          reviewCount: 156,
+          price: 120,
+          available: true
+        },
+        {
+          id: "d4",
+          name: "Dr. James Anderson",
+          specialty: "Neurologist",
+          image: "https://randomuser.me/api/portraits/men/67.jpg",
+          location: "Neuroscience Institute",
+          rating: 4.7,
+          reviewCount: 87,
+          price: 180,
+          available: false
+        },
+        {
+          id: "d5",
+          name: "Dr. Rebecca Chen",
+          specialty: "Orthopedic Surgeon",
+          image: "https://randomuser.me/api/portraits/women/23.jpg",
+          location: "Orthopedic Specialists",
+          rating: 4.9,
+          reviewCount: 112,
+          price: 200,
+          available: true
+        },
+        {
+          id: "d6",
+          name: "Dr. David Thompson",
+          specialty: "Psychiatrist",
+          image: "https://randomuser.me/api/portraits/men/92.jpg",
+          location: "Mental Wellness Center",
+          rating: 4.5,
+          reviewCount: 76,
+          price: 160,
+          available: true
+        }
+      ]);
+      setIsLoading(false);
+    }, 1000);
+  }, []);
+  
+  const filteredDoctors = doctors.filter(doctor => {
+    const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSpecialty = !specialty || doctor.specialty === specialty;
+    return matchesSearch && matchesSpecialty;
+  });
+  
+  const specialties = [...new Set(doctors.map(doctor => doctor.specialty))];
+  
+  const handleDoctorClick = (doctorId: string) => {
+    router.push(`/doctors/${doctorId}`);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <motion.div 
+          className="h-16 w-16 border-t-4 border-blue-500 border-solid rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    );
+  }
+  
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Filter Sidebar */}
-        <div className="w-full md:w-64 shrink-0">
-          <div className="card p-6 sticky top-24">
-            <h2 className="font-bold text-xl mb-4">Filters</h2>
-            
-            <div className="space-y-6">
-              {/* Specialty Filter */}
-              <div>
-                <h3 className="font-semibold mb-2">Specialty</h3>
-                <div className="space-y-2">
-                  {["Cardiologist", "Dermatologist", "Pediatrician", "Orthopedic", "Neurologist", "Family Medicine"].map((specialty) => (
-                    <div key={specialty} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`specialty-${specialty}`}
-                        className="mr-2"
-                      />
-                      <label htmlFor={`specialty-${specialty}`} className="text-sm">
-                        {specialty}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Location Filter */}
-              <div>
-                <h3 className="font-semibold mb-2">Location</h3>
-                <input
-                  type="text"
-                  placeholder="Enter city or zip code"
-                  className="input w-full text-sm"
-                />
-              </div>
-              
-              {/* Availability Filter */}
-              <div>
-                <h3 className="font-semibold mb-2">Availability</h3>
-                <div className="space-y-2">
-                  {["Today", "Tomorrow", "This Week", "Next Week"].map((time) => (
-                    <div key={time} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`availability-${time}`}
-                        className="mr-2"
-                      />
-                      <label htmlFor={`availability-${time}`} className="text-sm">
-                        {time}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Rating Filter */}
-              <div>
-                <h3 className="font-semibold mb-2">Minimum Rating</h3>
-                <select className="input w-full text-sm">
-                  <option value="0">Any Rating</option>
-                  <option value="3">3+ Stars</option>
-                  <option value="4">4+ Stars</option>
-                  <option value="4.5">4.5+ Stars</option>
-                </select>
-              </div>
-              
-              <button className="btn-primary w-full mt-4">
-                Apply Filters
-              </button>
+    <motion.div 
+      className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+            Find the Right Doctor
+          </h1>
+          <p className="mt-3 text-xl text-gray-500">
+            Book appointments with the best doctors near you
+          </p>
+        </div>
+        
+        {/* Search and Filter */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-3">
+              <input 
+                type="text"
+                placeholder="Search doctors by name or specialty..."
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
+            
+            <select
+              className="px-4 py-3 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+              value={specialty || ""}
+              onChange={(e) => setSpecialty(e.target.value || null)}
+            >
+              <option value="">All Specialties</option>
+              {specialties.map(specialty => (
+                <option key={specialty} value={specialty}>{specialty}</option>
+              ))}
+            </select>
           </div>
         </div>
         
-        {/* Main Content */}
-        <div className="flex-1">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Find a Doctor</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Sort by:</span>
-              <select className="input text-sm">
-                <option value="relevance">Relevance</option>
-                <option value="rating">Rating</option>
-                <option value="experience">Experience</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* Doctor Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {doctors.map((doctor) => (
-              <div key={doctor.id} className="card overflow-hidden">
-                <div className="relative h-48 bg-muted">
-                  <div className="w-full h-full bg-secondary flex items-center justify-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-20 w-20 text-muted-foreground"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
+        {/* Doctors List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredDoctors.map((doctor, index) => (
+            <motion.div 
+              key={doctor.id}
+              className="bg-white rounded-xl shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => handleDoctorClick(doctor.id)}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+            >
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="relative h-16 w-16 rounded-full overflow-hidden mr-4">
+                    <Image 
+                      src={doctor.image} 
+                      alt={doctor.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">{doctor.name}</h3>
+                    <p className="text-sm text-blue-600 flex items-center">
+                      <FaUserMd className="mr-1" /> {doctor.specialty}
+                    </p>
                   </div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-lg">{doctor.name}</h3>
-                  <p className="text-muted-foreground text-sm mb-2">{doctor.specialty}</p>
-                  
-                  <div className="flex items-center text-sm mb-4">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-primary mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    {doctor.location}
-                  </div>
-                  
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center">
-                      <div className="flex text-yellow-400">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`h-4 w-4 ${i < Math.floor(doctor.rating) ? "fill-current" : "stroke-current fill-none"}`}
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                            />
-                          </svg>
-                        ))}
-                      </div>
-                      <span className="ml-1 text-sm">{doctor.rating}</span>
-                    </div>
-                    
-                    <span className="text-sm text-muted-foreground">
-                      {doctor.experience} years exp.
-                    </span>
-                  </div>
-                  
-                  <Link
-                    href={`/doctors/${doctor.id}`}
-                    className="btn-primary w-full text-center"
-                  >
-                    Book Appointment
-                  </Link>
+                
+                <div className="flex items-center text-sm text-gray-500 mb-3">
+                  <FaMapMarkerAlt className="text-red-500 mr-1" />
+                  <span>{doctor.location}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          <div className="flex justify-center mt-10">
-            <div className="flex gap-1">
-              <button className="px-4 py-2 rounded-md border app-border">
-                Previous
-              </button>
-              {[1, 2, 3].map((page) => (
+                
+                <div className="flex items-center mb-4">
+                  <div className="flex text-yellow-400 mr-1">
+                    <FaStar />
+                    <FaStar />
+                    <FaStar />
+                    <FaStar />
+                    <FaStar className={doctor.rating < 4.8 ? "text-yellow-200" : ""} />
+                  </div>
+                  <span className="text-sm text-gray-600">{doctor.rating} ({doctor.reviewCount} reviews)</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-gray-500 text-sm">Consultation Fee</span>
+                    <p className="font-bold text-gray-900">${doctor.price}</p>
+                  </div>
+                  
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium ${doctor.available ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                    {doctor.available ? "Available Today" : "Unavailable"}
+                  </div>
+                </div>
+                
                 <button
-                  key={page}
-                  className={`px-4 py-2 rounded-md ${page === 1 ? "bg-primary text-primary-foreground" : "border app-border"}`}
+                  className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg font-medium flex items-center justify-center hover:bg-blue-700 transition"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/booking/appointment?doctorId=${doctor.id}`);
+                  }}
                 >
-                  {page}
+                  <FaCalendarAlt className="mr-2" />
+                  Book Appointment
                 </button>
-              ))}
-              <button className="px-4 py-2 rounded-md border app-border">
-                Next
-              </button>
-            </div>
-          </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
+        
+        {filteredDoctors.length === 0 && (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No doctors found</h3>
+            <p className="text-gray-500">Try adjusting your search criteria</p>
+          </div>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 } 

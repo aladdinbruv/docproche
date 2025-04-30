@@ -13,7 +13,7 @@ type AuthContextType = {
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -329,34 +329,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
+  const signIn = async (email: string, password: string, captchaToken?: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      setIsLoading(true);
+      console.log('Sign in attempt:', email);
+      
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-      });
-
-      if (error) {
-        // Check specifically for email verification error
-        if (error.message?.includes('Email not confirmed') || 
-            error.message?.includes('Email verification required') ||
-            error.message?.includes('Email not verified')) {
-          throw new Error('Please verify your email before logging in. Check your inbox for a verification email.');
+        options: {
+          captchaToken
         }
-        console.error("Login error:", error);
-        throw error;
-      }
-
-      if (data?.user) {
-        const userProfile = await fetchProfile(data.user.id);
-        setProfile(userProfile);
-        
-        // Explicitly redirect to dashboard after successful login
-        console.log('Login successful, redirecting to dashboard');
-        router.push('/dashboard');
-      }
-    } catch (error) {
+      });
+      
+      if (error) throw error;
+      
+      console.log('Sign in successful, redirecting...');
+      router.push('/dashboard');
+      router.refresh();
+    } catch (error: any) {
+      console.error('Error signing in:', error.message);
       throw error;
     } finally {
       setIsLoading(false);

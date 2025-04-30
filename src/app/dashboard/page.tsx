@@ -58,7 +58,7 @@ export default function DashboardPage() {
       
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card p-6">
+        <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium">Upcoming Appointments</h3>
             <div className="bg-primary/10 text-primary p-2 rounded-full">
@@ -90,7 +90,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         
-        <div className="card p-6">
+        <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium">Active Prescriptions</h3>
             <div className="bg-primary/10 text-primary p-2 rounded-full">
@@ -122,7 +122,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         
-        <div className="card p-6">
+        <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium">Unread Messages</h3>
             <div className="bg-primary/10 text-primary p-2 rounded-full">
@@ -169,7 +169,7 @@ export default function DashboardPage() {
         
         <div className="space-y-4">
           {upcomingAppointments.map((appointment) => (
-            <div key={appointment.id} className="card p-4 flex flex-col md:flex-row md:items-center justify-between">
+            <div key={appointment.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] flex flex-col md:flex-row md:items-center justify-between">
               <div className="flex-1 mb-4 md:mb-0">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="bg-primary/10 text-primary p-2 rounded-full">
@@ -294,7 +294,7 @@ export default function DashboardPage() {
           ))}
           
           {upcomingAppointments.length === 0 && (
-            <div className="card p-6 text-center">
+            <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
               <p className="text-muted-foreground">You have no upcoming appointments.</p>
               <Link 
                 href="/doctors" 
@@ -323,7 +323,7 @@ export default function DashboardPage() {
           
           <div className="space-y-4">
             {recentPrescriptions.map((prescription) => (
-              <div key={prescription.id} className="card p-4">
+              <div key={prescription.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
                 <div className="flex justify-between mb-2">
                   <h3 className="font-medium">{prescription.name}</h3>
                   <span className="text-sm text-muted-foreground">{prescription.date}</span>
@@ -342,7 +342,7 @@ export default function DashboardPage() {
             ))}
             
             {recentPrescriptions.length === 0 && (
-              <div className="card p-6 text-center">
+              <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
                 <p className="text-muted-foreground">You have no recent prescriptions.</p>
               </div>
             )}
@@ -363,7 +363,7 @@ export default function DashboardPage() {
           
           <div className="space-y-4">
             {unreadMessages.map((message) => (
-              <div key={message.id} className="card p-4">
+              <div key={message.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
                 <div className="flex justify-between mb-2">
                   <h3 className="font-medium">{message.from}</h3>
                   <span className="text-xs text-muted-foreground">{message.date}, {message.time}</span>
@@ -381,7 +381,7 @@ export default function DashboardPage() {
             ))}
             
             {unreadMessages.length === 0 && (
-              <div className="card p-6 text-center">
+              <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
                 <p className="text-muted-foreground">You have no unread messages.</p>
               </div>
             )}

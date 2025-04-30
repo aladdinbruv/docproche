@@ -19,7 +19,7 @@ export default function BookingPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-2">
-            <div className="card p-6 space-y-8">
+            <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 space-y-8">
               <div>
                 <h2 className="text-xl font-semibold mb-4">Appointment Details</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,7 +184,7 @@ export default function BookingPage() {
           </div>
           
           <div className="md:col-span-1">
-            <div className="card p-6 sticky top-24">
+            <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 sticky top-24">
               <h2 className="font-semibold text-lg mb-4">Appointment Summary</h2>
               
               <div className="space-y-4">

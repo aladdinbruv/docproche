@@ -33,7 +33,7 @@ export default function SupabaseChecker() {
   }, []);
 
   return (
-    <div className="card p-6 max-w-md mx-auto">
+    <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 max-w-md mx-auto">
       <h2 className="text-xl font-semibold mb-4">Supabase Connection Status</h2>
       
       <div className="space-y-2">

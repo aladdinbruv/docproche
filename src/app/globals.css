@@ -3,12 +3,12 @@
 :root {
   --background: #f8fafc;
   --foreground: #1e293b;
-  --primary: #0ea5e9;
+  --primary: #0072CE;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #334155;
-  --accent: #e0f2fe;
-  --accent-foreground: #0369a1;
+  --accent: #01A6A4;
+  --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --muted: #f1f5f9;
@@ -17,11 +17,11 @@
   --card-foreground: #1e293b;
   --border: #e2e8f0;
   --input: #e2e8f0;
-  --ring: #0ea5e9;
+  --ring: #0072CE;
   --radius: 0.5rem;
-  --success: #10b981;
+  --success: #43B02A;
   --success-foreground: #ffffff;
-  --warning: #f59e0b;
+  --warning: #FF9500;
   --warning-foreground: #ffffff;
   --info: #3b82f6;
   --info-foreground: #ffffff;
@@ -60,12 +60,12 @@
   :root {
     --background: #0f172a;
     --foreground: #f8fafc;
-    --primary: #0ea5e9;
+    --primary: #0072CE;
     --primary-foreground: #ffffff;
     --secondary: #1e293b;
     --secondary-foreground: #f1f5f9;
-    --accent: #0c4a6e;
-    --accent-foreground: #bae6fd;
+    --accent: #01A6A4;
+    --accent-foreground: #ffffff;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
     --muted: #1e293b;
@@ -74,10 +74,10 @@
     --card-foreground: #f8fafc;
     --border: #334155;
     --input: #334155;
-    --ring: #0ea5e9;
-    --success: #10b981;
+    --ring: #0072CE;
+    --success: #43B02A;
     --success-foreground: #ffffff;
-    --warning: #f59e0b;
+    --warning: #FF9500;
     --warning-foreground: #ffffff;
     --info: #3b82f6;
     --info-foreground: #ffffff;
@@ -136,24 +136,6 @@ body {
     @apply hover:bg-[var(--secondary)] hover:text-[var(--secondary-foreground)] rounded-md px-4 py-2 transition-colors font-medium;
   }
   
-  .card {
-    background-color: var(--card);
-    color: var(--card-foreground);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  }
-  
-  .card-hover {
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
-  }
-  
-  .card-hover:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-  
   .input {
     @apply px-3 py-2 rounded-md border border-[var(--input)] bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-[var(--input)];
   }
@@ -165,39 +147,11 @@ body {
   
   /* Healthcare specific utilities */
   .doctor-card {
-    background-color: var(--card);
-    color: var(--card-foreground);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    transition-property: all;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 200ms;
-  }
-  
-  .doctor-card:hover {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    @apply bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 transition-all duration-200 ease-in-out hover:shadow-md;
   }
   
   .appointment-item {
-    background-color: var(--card);
-    color: var(--card-foreground);
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  @media (min-width: 768px) {
-    .appointment-item {
-      flex-direction: row;
-      gap: 1rem;
-      align-items: center;
-      justify-content: space-between;
-    }
+    @apply bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-4 flex flex-col md:flex-row md:gap-4 md:items-center md:justify-between;
   }
   
   .status-pill {
@@ -222,5 +176,98 @@ body {
   
   .section-padding {
     @apply py-10 md:py-16;
+  }
+  
+  /* Medical UI Components */
+  .glassmorphic-card {
+    @apply relative overflow-hidden rounded-xl bg-white/90 backdrop-blur-sm border border-neutral-200/50 shadow-lg;
+  }
+  
+  .badge-pill {
+    @apply inline-block px-3 py-1 text-xs font-medium rounded-full;
+  }
+  
+  .badge-primary {
+    @apply bg-[var(--primary)]/10 text-[var(--primary)];
+  }
+  
+  .badge-success {
+    @apply bg-[var(--success)]/10 text-[var(--success)];
+  }
+  
+  .badge-warning {
+    @apply bg-[var(--warning)]/10 text-[var(--warning)];
+  }
+  
+  .badge-accent {
+    @apply bg-[var(--accent)]/10 text-[var(--accent)];
+  }
+  
+  .badge-info {
+    @apply bg-[var(--info)]/10 text-[var(--info)];
+  }
+  
+  .badge-destructive {
+    @apply bg-[var(--destructive)]/10 text-[var(--destructive)];
+  }
+  
+  .doctor-card-enhanced {
+    @apply relative overflow-hidden rounded-xl bg-white shadow-md transition-all hover:shadow-lg;
+  }
+  
+  .doctor-image-container {
+    @apply relative h-60 overflow-hidden;
+  }
+  
+  .doctor-image-overlay {
+    @apply absolute inset-0 bg-gradient-to-t from-neutral-900/70 to-neutral-900/0 z-[1];
+  }
+  
+  .doctor-image {
+    @apply w-full h-full object-cover transition-transform duration-500 group-hover:scale-105;
+  }
+  
+  .doctor-rating {
+    @apply absolute bottom-4 left-4 text-white z-[2] flex items-center space-x-1;
+  }
+  
+  .timeline-container {
+    @apply space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-1/2 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[var(--primary)] before:via-[var(--primary)]/50 before:to-transparent;
+  }
+  
+  .timeline-item {
+    @apply relative pl-8;
+  }
+  
+  .timeline-marker {
+    @apply absolute left-0 top-1 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-[var(--primary)] text-white shadow;
+  }
+  
+  .doctor-search-widget {
+    @apply bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] shadow-lg p-6 md:p-8 border border-[var(--border)] relative z-10;
+  }
+  
+  .cta-gradient {
+    @apply relative overflow-hidden rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] p-8 shadow-lg;
+  }
+  
+  .cta-circle {
+    @apply absolute bg-white/10 rounded-full;
+  }
+  
+  .pulse-loader {
+    @apply flex justify-center items-center space-x-2 py-12;
+  }
+  
+  .animate-heartbeat {
+    animation: heartbeat 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes heartbeat {
+    0% { transform: scale(1); }
+    14% { transform: scale(1.3); }
+    28% { transform: scale(1); }
+    42% { transform: scale(1.3); }
+    70% { transform: scale(1); }
   }
 }

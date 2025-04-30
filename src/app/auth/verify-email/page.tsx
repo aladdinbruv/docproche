@@ -63,7 +63,7 @@ export default function VerifyEmailPage() {
           </p>
         </div>
         
-        <div className="card p-6">
+        <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6">
           {status === 'loading' && (
             <div className="flex flex-col items-center justify-center py-8">
               <div className="w-16 h-16 border-t-4 border-primary border-solid rounded-full animate-spin"></div>

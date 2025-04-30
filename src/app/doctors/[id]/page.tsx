@@ -1,5 +1,11 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "framer-motion";
+import { FaStar, FaCalendarAlt, FaMapMarkerAlt, FaUserMd, FaClock } from "react-icons/fa";
 
 // Sample doctor data, would come from database in real app
 const doctorData = {
@@ -60,335 +66,252 @@ const doctorData = {
   ]
 };
 
-export default function DoctorProfile({ params }: { params: { id: string } }) {
-  // In a real app, we would fetch the doctor data based on the ID
-  const doctor = doctorData;
+export default function DoctorDetailsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const doctorId = params.id as string;
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  
+  useEffect(() => {
+    // Mock API call to fetch doctor details
+    setTimeout(() => {
+      setDoctor({
+        id: doctorId,
+        name: "Dr. Sarah Johnson",
+        specialty: "Cardiologist",
+        image: "https://randomuser.me/api/portraits/women/76.jpg",
+        bio: "Dr. Sarah Johnson is a board-certified cardiologist with over 15 years of experience in treating various heart conditions. She specializes in preventive cardiology and heart disease management.",
+        experience: "15+ years",
+        education: "MD from Harvard Medical School, Residency at Mass General Hospital",
+        rating: 4.8,
+        reviewCount: 124,
+        location: "New York Medical Center",
+        price: 150,
+        languages: ["English", "Spanish"],
+        availability: {
+          days: ["Monday", "Tuesday", "Wednesday", "Friday"],
+          hours: "9:00 AM - 5:00 PM"
+        }
+      });
+      setIsLoading(false);
+    }, 1000);
+  }, [doctorId]);
+  
+  const handleBookAppointment = () => {
+    router.push(`/booking/appointment?doctorId=${doctorId}`);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <motion.div 
+          className="h-16 w-16 border-t-4 border-blue-500 border-solid rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    );
+  }
+  
+  if (!doctor) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-500">Doctor not found</h2>
+          <p className="mt-2">The doctor you're looking for doesn't exist or has been removed.</p>
+          <button 
+            onClick={() => router.push('/doctors')}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          >
+            Browse Doctors
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="mb-6">
-        <Link href="/doctors" className="text-primary hover:underline flex items-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4 mr-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Doctors
-        </Link>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Doctor Profile */}
-        <div className="lg:col-span-2">
-          <div className="card p-6">
-            <div className="flex flex-col md:flex-row gap-6 mb-6">
-              <div className="relative w-32 h-32 rounded-full overflow-hidden bg-secondary flex-shrink-0 mx-auto md:mx-0">
-                <div className="w-full h-full bg-secondary flex items-center justify-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-20 w-20 text-muted-foreground"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              
-              <div className="flex-1 text-center md:text-left">
-                <h1 className="text-3xl font-bold">{doctor.name}</h1>
-                <p className="text-muted-foreground mb-2">{doctor.specialty}</p>
-                
-                <div className="flex flex-wrap gap-4 justify-center md:justify-start mb-4">
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-primary mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    {doctor.location}
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <div className="flex text-yellow-400">
-                      {[...Array(5)].map((_, i) => (
-                        <svg
-                          key={i}
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-4 w-4 ${i < Math.floor(doctor.rating) ? "fill-current" : "stroke-current fill-none"}`}
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                          />
-                        </svg>
-                      ))}
-                    </div>
-                    <span className="ml-1 text-sm">{doctor.rating} ({doctor.reviews.length} reviews)</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-primary mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    <span className="text-sm">{doctor.experience} years experience</span>
-                  </div>
+    <motion.div 
+      className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="md:flex">
+            {/* Doctor Profile Image and Quick Info */}
+            <motion.div 
+              className="md:flex-shrink-0 p-6 md:w-1/3 bg-blue-50"
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="relative w-40 h-40 rounded-full overflow-hidden mb-4 border-4 border-white shadow-lg">
+                  <Image 
+                    src={doctor.image} 
+                    alt={doctor.name}
+                    layout="fill"
+                    objectFit="cover"
+                    className="rounded-full"
+                  />
                 </div>
                 
-                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  {doctor.languages.map((language) => (
-                    <span key={language} className="bg-secondary px-3 py-1 rounded-full text-xs">
-                      {language}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t app-border pt-6">
-              <h2 className="text-xl font-semibold mb-4">About</h2>
-              <p className="text-muted-foreground mb-6">{doctor.bio}</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Contact Information</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start">
-                      <span className="font-medium w-20">Address:</span>
-                      <span className="text-muted-foreground">{doctor.address}</span>
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-medium w-20">Phone:</span>
-                      <span className="text-muted-foreground">{doctor.phone}</span>
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-medium w-20">Email:</span>
-                      <span className="text-muted-foreground">{doctor.email}</span>
-                    </li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="font-semibold mb-3">Availability</h3>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start">
-                      <span className="font-medium w-20">Days:</span>
-                      <span className="text-muted-foreground">{doctor.available_days.join(", ")}</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-medium w-20">Hours:</span>
-                      <span className="text-muted-foreground">{doctor.available_times[0]} - {doctor.available_times[doctor.available_times.length - 1]}</span>
-                    </li>
-                    <li className="flex items-center">
-                      <span className="font-medium w-20">Fee:</span>
-                      <span className="text-muted-foreground">${doctor.consultation_fee} per session</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Education & Training</h3>
-                <ul className="space-y-4">
-                  {doctor.education.map((edu, index) => (
-                    <li key={index} className="flex flex-col md:flex-row md:items-center">
-                      <span className="font-medium md:w-1/4">{edu.year}</span>
-                      <div className="md:w-3/4">
-                        <p className="font-medium">{edu.degree}</p>
-                        <p className="text-sm text-muted-foreground">{edu.institution}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-3">Patient Reviews</h3>
-                <div className="space-y-4">
-                  {doctor.reviews.map((review) => (
-                    <div key={review.id} className="border-b app-border pb-4 last:border-0">
-                      <div className="flex justify-between mb-1">
-                        <span className="font-medium">{review.patient}</span>
-                        <span className="text-sm text-muted-foreground">{review.date}</span>
-                      </div>
-                      
-                      <div className="flex text-yellow-400 mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            xmlns="http://www.w3.org/2000/svg"
-                            className={`h-4 w-4 ${i < review.rating ? "fill-current" : "stroke-current fill-none"}`}
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-                            />
-                          </svg>
-                        ))}
-                      </div>
-                      
-                      <p className="text-muted-foreground">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Appointment Booking */}
-        <div>
-          <div className="card p-6 sticky top-24">
-            <h2 className="text-xl font-semibold mb-6">Book an Appointment</h2>
-            
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-medium mb-3">Select Date</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {["Mon", "Tue", "Wed", "Thu"].map((day, i) => (
-                    <button
-                      key={day}
-                      className={`p-2 text-center rounded-md border ${i === 0 ? "border-primary bg-primary/10" : "app-border"}`}
-                    >
-                      <div className="text-xs">{day}</div>
-                      <div className="font-medium">{15 + i}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-3">Select Time</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {doctor.available_times.slice(0, 6).map((time, i) => (
-                    <button
-                      key={time}
-                      className={`p-2 text-center rounded-md border text-sm ${i === 1 ? "border-primary bg-primary/10" : "app-border"}`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-medium mb-3">Appointment Type</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button className="p-3 flex flex-col items-center justify-center rounded-md border border-primary bg-primary/10">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-primary mb-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    <span className="text-sm font-medium">In-Person</span>
-                  </button>
-                  
-                  <button className="p-3 flex flex-col items-center justify-center rounded-md border app-border">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mb-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                      />
-                    </svg>
-                    <span className="text-sm font-medium">Video Call</span>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="border-t app-border pt-4">
-                <div className="flex justify-between mb-2">
-                  <span>Consultation Fee</span>
-                  <span className="font-semibold">${doctor.consultation_fee}</span>
-                </div>
-                
-                <Link
-                  href={`/booking?doctor=${doctor.id}`}
-                  className="btn-primary w-full mt-4 text-center"
-                >
-                  Confirm Booking
-                </Link>
-                
-                <p className="text-xs text-muted-foreground text-center mt-4">
-                  By booking this appointment you agree to our{" "}
-                  <Link href="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{doctor.name}</h1>
+                <p className="flex items-center text-blue-600 mb-4">
+                  <FaUserMd className="mr-1" /> {doctor.specialty}
                 </p>
+                
+                <div className="flex items-center mb-4">
+                  <div className="flex text-yellow-400">
+                    <FaStar />
+                    <FaStar />
+                    <FaStar />
+                    <FaStar />
+                    <FaStar className="text-yellow-200" />
+                  </div>
+                  <span className="ml-2 text-gray-600">{doctor.rating} ({doctor.reviewCount} reviews)</span>
+                </div>
+                
+                <div className="w-full space-y-3">
+                  <div className="flex items-center p-3 bg-white rounded-lg shadow-sm">
+                    <FaMapMarkerAlt className="text-red-500 mr-3" />
+                    <span className="text-gray-700">{doctor.location}</span>
+                  </div>
+                  
+                  <div className="flex items-center p-3 bg-white rounded-lg shadow-sm">
+                    <FaClock className="text-blue-500 mr-3" />
+                    <div className="text-left">
+                      <span className="text-gray-700 block">{doctor.availability.hours}</span>
+                      <span className="text-sm text-gray-500">{doctor.availability.days.join(", ")}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 bg-white rounded-lg shadow-sm">
+                    <span className="font-medium text-gray-900">Consultation Fee:</span>
+                    <span className="ml-2 text-blue-600 font-bold">${doctor.price}</span>
+                  </div>
+                </div>
+                
+                <motion.button
+                  onClick={handleBookAppointment}
+                  className="mt-6 w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-8"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <FaCalendarAlt className="mr-2" />
+                  Book Appointment
+                </motion.button>
+              </div>
+            </motion.div>
+            
+            {/* Doctor Details */}
+            <div className="p-8 md:w-2/3">
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">About Doctor</h2>
+                <p className="text-gray-700 leading-relaxed">{doctor.bio}</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div 
+                  className="bg-gray-50 p-5 rounded-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <h3 className="font-semibold text-gray-900 mb-2">Education</h3>
+                  <p className="text-gray-700">{doctor.education}</p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-gray-50 p-5 rounded-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <h3 className="font-semibold text-gray-900 mb-2">Experience</h3>
+                  <p className="text-gray-700">{doctor.experience}</p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-gray-50 p-5 rounded-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
+                  <p className="text-gray-700">{doctor.languages.join(", ")}</p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-gray-50 p-5 rounded-lg"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <h3 className="font-semibold text-gray-900 mb-2">Specialization</h3>
+                  <ul className="list-disc list-inside text-gray-700">
+                    <li>Preventive Cardiology</li>
+                    <li>Heart Disease Management</li>
+                    <li>Cardiac Rehabilitation</li>
+                    <li>Hypertension Management</li>
+                  </ul>
+                </motion.div>
+              </div>
+              
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Patient Reviews</h3>
+                
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <span className="text-yellow-400 flex">
+                        <FaStar />
+                        <FaStar />
+                        <FaStar />
+                        <FaStar />
+                        <FaStar />
+                      </span>
+                      <span className="ml-2 font-medium">John D.</span>
+                      <span className="text-gray-500 text-sm ml-auto">2 weeks ago</span>
+                    </div>
+                    <p className="text-gray-700">
+                      Dr. Johnson was extremely thorough and took the time to explain everything in detail. Highly recommend!
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center mb-2">
+                      <span className="text-yellow-400 flex">
+                        <FaStar />
+                        <FaStar />
+                        <FaStar />
+                        <FaStar />
+                        <FaStar className="text-yellow-200" />
+                      </span>
+                      <span className="ml-2 font-medium">Maria R.</span>
+                      <span className="text-gray-500 text-sm ml-auto">1 month ago</span>
+                    </div>
+                    <p className="text-gray-700">
+                      Great doctor who is very knowledgeable and caring. The office staff was also very helpful.
+                    </p>
+                  </div>
+                </div>
+                
+                <button className="mt-4 text-blue-600 hover:text-blue-800 transition font-medium flex items-center">
+                  View all {doctor.reviewCount} reviews
+                  <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 } 
