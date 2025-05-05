@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FaChevronLeft, FaChevronRight, FaCalendarCheck } from 'react-icons/fa';
 
@@ -22,20 +22,43 @@ export const Calendar = ({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Array<{ date: Date | null; available: boolean; isCurrentMonth: boolean }>>([]);
   
-  // Convert availableDates strings to Date objects
-  const availableDateObjects = availableDates.map(dateStr => new Date(dateStr));
+  // Convert availableDates strings to Date objects, filtering out invalid dates
+  const availableDateObjects = useMemo(() => 
+    availableDates
+      .map(dateStr => {
+        const date = new Date(dateStr);
+        return !isNaN(date.getTime()) ? date : null;
+      })
+      .filter(Boolean) as Date[],
+    [availableDates]
+  );
+  
+  // Memoize minDate and maxDate with time set to beginning/end of day
+  const minDateMidnight = useMemo(() => {
+    if (!minDate) return null;
+    const date = new Date(minDate);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }, [minDate]);
+  
+  const maxDateMidnight = useMemo(() => {
+    if (!maxDate) return null;
+    const date = new Date(maxDate);
+    date.setHours(23, 59, 59, 999);
+    return date;
+  }, [maxDate]);
   
   // Check if a date is available
-  const isDateAvailable = (date: Date) => {
+  const isDateAvailable = useMemo(() => (date: Date) => {
     if (!date) return false;
     
     // Check if date is after minDate
-    if (minDate && date < new Date(minDate.setHours(0, 0, 0, 0))) {
+    if (minDateMidnight && date < minDateMidnight) {
       return false;
     }
     
     // Check if date is before maxDate
-    if (maxDate && date > new Date(maxDate.setHours(0, 0, 0, 0))) {
+    if (maxDateMidnight && date > maxDateMidnight) {
       return false;
     }
     
@@ -50,7 +73,7 @@ export const Calendar = ({
     
     // If no availableDates provided, all future dates are available
     return true;
-  };
+  }, [availableDateObjects, minDateMidnight, maxDateMidnight]);
   
   // Generate calendar days for the current month
   useEffect(() => {
@@ -106,7 +129,7 @@ export const Calendar = ({
     }
     
     setCalendarDays(days);
-  }, [currentMonth, availableDateObjects, minDate, maxDate]);
+  }, [currentMonth, isDateAvailable]);
   
   // Go to previous month
   const goToPrevMonth = () => {

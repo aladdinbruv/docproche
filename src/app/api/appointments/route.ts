@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     
     const { data, error } = await supabase
       .from("appointments")
-      .select("*, doctor_profiles(*)")
+      .select("*, doctor:users!appointments_doctor_id_fkey(*)")
       .eq(queryField, userId)
       .order("date", { ascending: true });
     

@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { FaCheckCircle, FaCalendarAlt, FaClock, FaVideo, FaMapMarkerAlt, FaUserMd, FaCreditCard } from "react-icons/fa";
-import { MdSecurity, MdEmail, MdPhone } from "react-icons/md";
+import { FaCheckCircle, FaCalendarAlt, FaClock, FaVideo, FaMapMarkerAlt, FaCreditCard } from "react-icons/fa";
+import { MdSecurity, MdEmail } from "react-icons/md";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Doctor {
   id: string;
   name: string;
   specialty: string;
   image: string;
+  consultation_fee?: number;
 }
 
 export default function ConfirmationPage() {
@@ -29,105 +32,224 @@ export default function ConfirmationPage() {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCVC, setCardCVC] = useState("");
-  const [nameOnCard, setNameOnCard] = useState("");
+  const [symptoms, setSymptoms] = useState("");
   
-  // Mock data loading
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
+  
+  const sessionId = searchParams.get("session_id");
+  
+  // Add default placeholder image
+  const defaultDoctorImage = "/images/doctor-placeholder.jpg";
+  
+  // Check for successful payment
   useEffect(() => {
+    const checkPaymentStatus = async () => {
+      if (sessionId) {
+        try {
+          // Find the appointment associated with this session
+          const { data: paymentData, error: paymentError } = await supabase
+            .from('payments')
+            .select('appointment_id, status')
+            .eq('transaction_id', sessionId);
+
+          if (paymentError) {
+            console.error("Error fetching payment:", paymentError);
+            setIsSuccess(true); // Still show success even if there's an error
+            return;
+          }
+
+          if (paymentData && paymentData.length > 0) {
+            // If payment status is pending, update it to successful
+            if (paymentData[0].status === 'pending') {
+              // Make API call to update payment status
+              const response = await fetch('/api/webhooks/stripe/manual-update', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  sessionId,
+                }),
+              });
+              
+              if (!response.ok) {
+                console.error("Error updating payment status via API");
+              }
+            }
+          }
+          
+          setIsSuccess(true);
+        } catch (err) {
+          console.error("Error updating payment status:", err);
+          setIsSuccess(true); // Still show success page even if there was an error
+        }
+      }
+    };
+    
+    checkPaymentStatus();
+  }, [sessionId, supabase]);
+  
+  useEffect(() => {
+    if (!doctorId || !dateStr || !timeSlotId || !consultationType) {
+      router.push('/doctors');
+      return;
+    }
+    
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}`);
+      return;
+    }
+    
     if (dateStr) {
       setSelectedDate(new Date(dateStr));
     }
     
-    // Simulate API fetch for doctor and time slot
-    setTimeout(() => {
-      setDoctor({
-        id: doctorId || "d1",
-        name: "Dr. Sarah Johnson",
-        specialty: "Cardiologist",
-        image: "https://randomuser.me/api/portraits/women/76.jpg",
-      });
+    async function fetchAppointmentDetails() {
+      setIsLoading(true);
       
-      // Mock time based on timeSlotId
-      const times = {
-        t1: "09:00 AM",
-        t2: "10:00 AM",
-        t3: "11:00 AM",
-        t4: "01:00 PM",
-        t5: "02:00 PM",
-        t6: "03:00 PM",
-        t7: "04:00 PM",
-        t8: "05:00 PM",
-      };
-      
-      setSelectedTime(times[timeSlotId as keyof typeof times] || "");
-      setIsLoading(false);
-    }, 1000);
-  }, [doctorId, dateStr, timeSlotId]);
-  
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value.replace(/\D/g, '');
-    let formatted = '';
-    
-    for (let i = 0; i < input.length; i++) {
-      if (i > 0 && i % 4 === 0) {
-        formatted += ' ';
+      try {
+        // Fetch doctor details
+        const { data: doctorData, error: doctorError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', doctorId)
+          .eq('role', 'doctor')
+          .maybeSingle();
+        
+        if (doctorError) {
+          console.error("Error fetching doctor:", doctorError);
+          router.push('/doctors');
+          return;
+        }
+        
+        if (!doctorData) {
+          console.error("Doctor not found");
+          router.push('/doctors');
+          return;
+        }
+        
+        // Ensure doctor has all required fields
+        const sanitizedDoctor = {
+          ...doctorData,
+          id: doctorData.id,
+          image: doctorData.profile_image || defaultDoctorImage,
+          name: doctorData.full_name || "Doctor",
+          specialty: doctorData.specialty || "General Medicine",
+          consultation_fee: doctorData.consultation_fee || 150
+        };
+        
+        setDoctor(sanitizedDoctor);
+        
+        // Fetch time slot details
+        const { data: timeSlotData, error: timeSlotError } = await supabase
+          .from('time_slots')
+          .select('*')
+          .eq('id', timeSlotId)
+          .maybeSingle();
+        
+        if (timeSlotError) {
+          console.error("Error fetching time slot:", timeSlotError);
+        } else if (timeSlotData) {
+          setSelectedTime(timeSlotData.start_time);
+        }
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error in fetchAppointmentDetails:", err);
+        setIsLoading(false);
+        router.push('/doctors');
       }
-      formatted += input[i];
     }
     
-    setCardNumber(formatted.slice(0, 19)); // Limit to 16 digits + 3 spaces
-  };
+    fetchAppointmentDetails();
+  }, [doctorId, dateStr, timeSlotId, consultationType, router, supabase, user]);
   
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value.replace(/\D/g, '');
-    let formatted = '';
-    
-    if (input.length > 0) {
-      formatted = input.slice(0, 2);
-      if (input.length > 2) {
-        formatted += '/' + input.slice(2, 4);
-      }
-    }
-    
-    setCardExpiry(formatted);
-  };
-  
-  const handleCVCChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value.replace(/\D/g, '');
-    setCardCVC(input.slice(0, 3));
-  };
-  
-  const validateForm = () => {
-    return (
-      cardNumber.replace(/\s/g, '').length === 16 &&
-      cardExpiry.length === 5 &&
-      cardCVC.length === 3 &&
-      nameOnCard.trim().length > 0
-    );
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      alert("Please fill in all payment details correctly");
+    if (!user || !doctorId || !selectedDate || !selectedTime) {
+      alert("Missing required booking information");
       return;
     }
     
     setIsConfirming(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsConfirming(false);
-      setIsSuccess(true);
+    try {
+      // Create the appointment
+      const { data: appointmentData, error: appointmentError } = await supabase
+        .from('appointments')
+        .insert({
+          patient_id: user.id,
+          doctor_id: doctorId,
+          date: selectedDate.toISOString().split('T')[0],
+          time_slot: selectedTime,
+          status: 'pending',
+          consultation_type: consultationType === 'video' ? 'video' : 'in-person',
+          symptoms,
+          payment_status: 'unpaid',
+          created_by: user.id
+        })
+        .select();
       
-      // Redirect to dashboard or show success message
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 3000);
-    }, 2000);
+      if (appointmentError) {
+        console.error("Error creating appointment:", appointmentError);
+        throw new Error(`Failed to create appointment: ${appointmentError.message}`);
+      }
+      
+      if (!appointmentData || appointmentData.length === 0) {
+        throw new Error("No appointment data returned from the server");
+      }
+      
+      const appointmentId = appointmentData[0].id;
+      
+      // Calculate the appointment amount
+      const appointmentAmount = doctor?.consultation_fee || 150;
+      
+      // Create Stripe checkout session
+      try {
+        const response = await fetch('/api/payments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            appointmentId: appointmentId,
+            amount: appointmentAmount,
+            successUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}&canceled=true`
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Payment API error (${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.url) {
+          throw new Error("No redirect URL returned from payment service");
+        }
+        
+        // Redirect to Stripe checkout
+        window.location.href = result.url;
+      } catch (paymentError) {
+        console.error("Payment creation error:", paymentError);
+        
+        // Attempt to clean up the appointment since payment failed
+        await supabase
+          .from('appointments')
+          .delete()
+          .eq('id', appointmentId);
+          
+        throw new Error(`Failed to set up payment: ${paymentError instanceof Error ? paymentError.message : String(paymentError)}`);
+      }
+    } catch (err) {
+      console.error("Error in appointment process:", err);
+      alert(`There was an error creating your appointment: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setIsConfirming(false);
+    }
   };
   
   if (isLoading) {
@@ -221,10 +343,11 @@ export default function ConfirmationPage() {
                   <div className="flex items-center mb-4">
                     <div className="relative h-12 w-12 rounded-full overflow-hidden mr-3">
                       <Image 
-                        src={doctor.image} 
-                        alt={doctor.name}
-                        layout="fill"
-                        objectFit="cover"
+                        src={doctor.image || defaultDoctorImage}
+                        alt={doctor.name || "Doctor"}
+                        fill
+                        sizes="48px"
+                        style={{ objectFit: "cover" }}
                       />
                     </div>
                     <div>
@@ -309,108 +432,35 @@ export default function ConfirmationPage() {
               </h3>
               
               <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-6">
                   <div>
-                    <label htmlFor="cardName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Name on Card
+                    <label htmlFor="symptoms" className="block text-sm font-medium text-gray-700 mb-1">
+                      Symptoms or Reason for Visit
                     </label>
-                    <input
-                      type="text"
-                      id="cardName"
-                      value={nameOnCard}
-                      onChange={(e) => setNameOnCard(e.target.value)}
+                    <textarea
+                      id="symptoms"
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="John Doe"
-                      required
+                      placeholder="Please describe your symptoms or reason for this appointment"
+                      rows={4}
                     />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        id="cardNumber"
-                        value={cardNumber}
-                        onChange={handleCardNumberChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="1234 5678 9012 3456"
-                        required
-                      />
-                      <motion.div 
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                      >
-                        <MdSecurity className="text-gray-400 text-xl" />
-                      </motion.div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="cardExpiry" className="block text-sm font-medium text-gray-700 mb-1">
-                        Expiration Date
-                      </label>
-                      <input
-                        type="text"
-                        id="cardExpiry"
-                        value={cardExpiry}
-                        onChange={handleExpiryChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="MM/YY"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="cardCVC" className="block text-sm font-medium text-gray-700 mb-1">
-                        CVC/CVV
-                      </label>
-                      <input
-                        type="text"
-                        id="cardCVC"
-                        value={cardCVC}
-                        onChange={handleCVCChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="123"
-                        required
-                      />
-                    </div>
                   </div>
                   
                   <div className="bg-blue-50 p-4 rounded-lg text-blue-700 text-sm flex items-start">
                     <MdSecurity className="text-blue-500 text-lg mt-0.5 mr-2 flex-shrink-0" />
                     <p>
-                      Your payment information is encrypted and secure. We do not store your card details.
+                      Your payment will be securely processed using Stripe. You will be redirected to their secure payment page.
                     </p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-gray-900">Contact Information</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center bg-gray-50 p-3 rounded-lg">
-                        <MdEmail className="text-gray-500 mr-2" />
-                        <span className="text-gray-700">patient@example.com</span>
-                      </div>
-                      
-                      <div className="flex items-center bg-gray-50 p-3 rounded-lg">
-                        <MdPhone className="text-gray-500 mr-2" />
-                        <span className="text-gray-700">+1 (555) 123-4567</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
                 
                 <div className="mt-8">
                   <button
                     type="submit"
-                    disabled={isConfirming || !validateForm()}
+                    disabled={isConfirming}
                     className={`w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                      isConfirming || !validateForm() ? 'opacity-70 cursor-not-allowed' : ''
+                      isConfirming ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     {isConfirming ? (
@@ -423,7 +473,10 @@ export default function ConfirmationPage() {
                         Processing...
                       </>
                     ) : (
-                      'Confirm and Pay $160.00'
+                      <>
+                        <FaCreditCard className="mr-2" />
+                        Proceed to Payment (${(doctor?.consultation_fee || 150) + 10}.00)
+                      </>
                     )}
                   </button>
                 </div>

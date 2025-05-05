@@ -1,5 +1,6 @@
 import { createServerComponentClient } from '@/lib/supabase';
-import { HealthRecord, MedicalHistory, Prescription } from '@/types/supabase';
+import { HealthRecord, Appointment } from '@/types/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 /**
  * Securely retrieves a health record using the database function
@@ -175,5 +176,115 @@ export async function logDataAccess(
     
   } catch (error) {
     console.error('Error in logDataAccess:', error);
+  }
+}
+
+/**
+ * Securely retrieves all appointments for a patient
+ * Ensures proper authorization
+ */
+export async function getPatientAppointments(patientId: string): Promise<Appointment[]> {
+  const supabase = createServerComponentClient();
+  
+  try {
+    const { data, error } = await supabase
+      .rpc('get_patient_appointments', { patient_id: patientId });
+    
+    if (error) {
+      console.error('Error fetching patient appointments:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getPatientAppointments:', error);
+    return [];
+  }
+}
+
+/**
+ * Securely retrieves all appointments for a doctor
+ * Ensures proper authorization
+ */
+export async function getDoctorAppointments(doctorId: string): Promise<Appointment[]> {
+  const supabase = createServerComponentClient();
+  
+  try {
+    const { data, error } = await supabase
+      .rpc('get_doctor_appointments', { doctor_id: doctorId });
+    
+    if (error) {
+      console.error('Error fetching doctor appointments:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getDoctorAppointments:', error);
+    return [];
+  }
+}
+
+/**
+ * Checks if the current user has access to appointments
+ * Used for client-side access control
+ */
+export async function hasAccessToAppointments(userId: string, _appointmentType: 'patient' | 'doctor'): Promise<boolean> {
+  const supabase = createClientComponentClient();
+  
+  try {
+    // Get the current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return false;
+    
+    const currentUserId = user.id;
+    
+    // User is accessing their own appointments - automatically grant access
+    if (currentUserId === userId) return true;
+    
+    // Check if user is an admin
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', currentUserId)
+      .single();
+    
+    if (userError) {
+      console.error('Error checking user role:', userError);
+      return false;
+    }
+    
+    return userData?.role === 'admin';
+    
+  } catch (error) {
+    console.error('Error in hasAccessToAppointments:', error);
+    return false;
+  }
+}
+
+/**
+ * Records an audit log entry for appointment actions
+ */
+export async function logAppointmentAction(
+  appointmentId: string,
+  action: 'book' | 'reschedule' | 'cancel' | 'complete'
+): Promise<void> {
+  const supabase = createServerComponentClient();
+  
+  try {
+    // Get the current user
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) return;
+    
+    const userId = session.user.id;
+    
+    // For now, we'll just log the action - in a real implementation you might
+    // store this in an audit log table
+    console.log(`Logged ${action} action on appointment ${appointmentId} by user ${userId}`);
+    
+  } catch (error) {
+    console.error('Error in logAppointmentAction:', error);
   }
 } 

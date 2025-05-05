@@ -1,6 +1,70 @@
+"use client";
+
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useAuth } from "@/hooks/useAuth";
+import { LoaderCircle } from "lucide-react";
+
+interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+}
 
 export default function BookingPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const doctorId = searchParams.get("doctorId");
+  const [isLoading, setIsLoading] = useState(true);
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    if (!doctorId) {
+      router.push('/doctors');
+      return;
+    }
+    
+    async function fetchDoctor() {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', doctorId)
+        .eq('role', 'doctor')
+        .eq('is_active', true)
+        .single();
+        
+      if (error || !data) {
+        console.error("Error fetching doctor:", error);
+        router.push('/doctors');
+        return;
+      }
+      
+      setDoctor(data);
+      setIsLoading(false);
+    }
+    
+    fetchDoctor();
+  }, [doctorId, router, supabase]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push(`/auth/login?redirectTo=/booking?doctorId=${doctorId}`);
+    return null;
+  }
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-3xl mx-auto">
@@ -25,11 +89,11 @@ export default function BookingPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Doctor</p>
-                    <p className="font-medium">Dr. Sarah Johnson</p>
+                    <p className="font-medium">{doctor?.name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Specialty</p>
-                    <p className="font-medium">Cardiologist</p>
+                    <p className="font-medium">{doctor?.specialty}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Date & Time</p>

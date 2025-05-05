@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { FaCalendarAlt, FaClock, FaVideo, FaPhoneAlt, FaUserMd, FaMapMarkerAlt } from "react-icons/fa";
+import { FaCalendarAlt, FaClock, FaVideo, FaUserMd, FaMapMarkerAlt } from "react-icons/fa";
 import { MdPayment } from "react-icons/md";
 import { Calendar } from "@/components/Calendar";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TimeSlot {
   id: string;
@@ -36,41 +38,108 @@ export default function AppointmentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
   
-  // Mock data for demo
+  const { user } = useAuth();
+  const supabase = createClientComponentClient();
+  
+  // Add default placeholder image
+  const defaultDoctorImage = "/images/doctor-placeholder.jpg";
+  
   useEffect(() => {
-    // Simulate API call to fetch doctor data
-    setTimeout(() => {
-      setDoctor({
-        id: doctorId || "d1",
-        name: "Dr. Sarah Johnson",
-        specialty: "Cardiologist",
-        image: "https://randomuser.me/api/portraits/women/76.jpg",
-        rating: 4.8,
-        reviewCount: 124,
-        price: 150,
-        availableDates: [
-          new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-          new Date(Date.now() + 86400000 * 2).toISOString(), // Day after tomorrow
-          new Date(Date.now() + 86400000 * 3).toISOString(), 
-          new Date(Date.now() + 86400000 * 5).toISOString(),
-        ]
-      });
+    if (!doctorId) {
+      router.push('/doctors');
+      return;
+    }
+    
+    if (!user) {
+      router.push(`/auth/login?redirectTo=/booking/appointment?doctorId=${doctorId}`);
+      return;
+    }
+    
+    async function fetchDoctorAndTimeSlots() {
+      setIsLoading(true);
       
-      setTimeSlots([
-        { id: "t1", time: "09:00 AM", available: true },
-        { id: "t2", time: "10:00 AM", available: true },
-        { id: "t3", time: "11:00 AM", available: false },
-        { id: "t4", time: "01:00 PM", available: true },
-        { id: "t5", time: "02:00 PM", available: true },
-        { id: "t6", time: "03:00 PM", available: false },
-        { id: "t7", time: "04:00 PM", available: true },
-        { id: "t8", time: "05:00 PM", available: true },
-      ]);
-      
-      setIsLoading(false);
-    }, 1000);
-  }, [doctorId]);
+      try {
+        // Fetch doctor information
+        const { data: doctorData, error: doctorError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', doctorId)
+          .eq('role', 'doctor')
+          .eq('is_active', true)
+          .single();
+          
+        if (doctorError || !doctorData) {
+          console.error("Error fetching doctor:", doctorError);
+          router.push('/doctors');
+          return;
+        }
+        
+        // Ensure doctor has all required fields
+        const sanitizedDoctor = {
+          ...doctorData,
+          image: doctorData.image || null,
+          name: doctorData.name || doctorData.full_name || "Doctor",
+          specialty: doctorData.specialty || "General Medicine",
+          rating: doctorData.rating || 5.0,
+          reviewCount: doctorData.review_count || 0,
+          price: doctorData.consultation_fee || 150
+        };
+        
+        setDoctor(sanitizedDoctor);
+        
+        // Fetch available time slots
+        const { data: timeSlotsData, error: timeSlotsError } = await supabase
+          .from('time_slots')
+          .select('*')
+          .eq('doctor_id', doctorId)
+          .eq('is_available', true);
+          
+        if (timeSlotsError) {
+          console.error("Error fetching time slots:", timeSlotsError);
+        }
+        
+        // Process available dates from time slots
+        const availableDays = doctorData.available_days || [];
+        const today = new Date();
+        const nextMonth = new Date();
+        nextMonth.setMonth(today.getMonth() + 1);
+        
+        // Generate available dates based on doctor's available days
+        const dates = [];
+        const current = new Date(today);
+        
+        while (current <= nextMonth) {
+          // Check if day of week is in available days
+          if (availableDays.includes(current.getDay().toString())) {
+            dates.push(new Date(current).toISOString());
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        
+        setAvailableDates(dates);
+        
+        // Create time slots from database
+        if (timeSlotsData) {
+          const slots: TimeSlot[] = timeSlotsData.map(slot => ({
+            id: slot.id,
+            time: slot.start_time,
+            available: true
+          }));
+          setTimeSlots(slots);
+        }
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error in fetchDoctorAndTimeSlots:", err);
+        setIsLoading(false);
+        router.push('/doctors');
+      }
+    }
+    
+    fetchDoctorAndTimeSlots();
+  }, [doctorId, router, supabase, user]);
   
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
@@ -110,7 +179,7 @@ export default function AppointmentPage() {
       <div className="min-h-screen flex justify-center items-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-red-500">Doctor not found</h2>
-          <p className="mt-2">The doctor you're looking for doesn't exist or has been removed.</p>
+          <p className="mt-2">The doctor you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <button 
             onClick={() => router.push('/doctors')}
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
@@ -151,10 +220,11 @@ export default function AppointmentPage() {
               <div className="flex items-center">
                 <div className="relative h-16 w-16 rounded-full overflow-hidden mr-4">
                   <Image 
-                    src={doctor.image} 
-                    alt={doctor.name}
-                    layout="fill"
-                    objectFit="cover"
+                    src={doctor.image || defaultDoctorImage}
+                    alt={doctor.name || "Doctor"}
+                    fill
+                    sizes="64px"
+                    style={{ objectFit: "cover" }}
                   />
                 </div>
                 <div>
@@ -203,7 +273,7 @@ export default function AppointmentPage() {
                 {/* Calendar Component */}
                 <div>
                   <Calendar 
-                    availableDates={doctor.availableDates}
+                    availableDates={availableDates}
                     onSelectDate={handleDateSelect}
                     selectedDate={selectedDate}
                     minDate={new Date()}

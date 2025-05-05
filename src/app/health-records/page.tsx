@@ -53,7 +53,7 @@ export default function HealthRecordsPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -116,91 +116,91 @@ export default function HealthRecordsPage() {
           {/* Navigation Tabs */}
           <div className="border-b border-gray-200 mb-6">
             <div className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab("records")}
+            <button
+              onClick={() => setActiveTab("records")}
                 className={`py-2 font-medium text-sm border-b-2 ${
-                  activeTab === "records"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
+                activeTab === "records"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
                 Health Records
-              </button>
-              <button
-                onClick={() => setActiveTab("vitals")}
+            </button>
+            <button
+              onClick={() => setActiveTab("vitals")}
                 className={`py-2 font-medium text-sm border-b-2 ${
-                  activeTab === "vitals"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                Vital Statistics
-              </button>
-              <button
-                onClick={() => setActiveTab("medications")}
+                activeTab === "vitals"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Vital Statistics
+            </button>
+            <button
+              onClick={() => setActiveTab("medications")}
                 className={`py-2 font-medium text-sm border-b-2 ${
-                  activeTab === "medications"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                Medications
-              </button>
-              <button
-                onClick={() => setActiveTab("documents")}
+                activeTab === "medications"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Medications
+            </button>
+            <button
+              onClick={() => setActiveTab("documents")}
                 className={`py-2 font-medium text-sm border-b-2 ${
-                  activeTab === "documents"
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
+                activeTab === "documents"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
                 Documents
-              </button>
-            </div>
-          </div>
-          
+                      </button>
+                    </div>
+                  </div>
+                  
           {/* Tab Content */}
           <div className="mb-8">
             {activeTab === "records" && (
               <div>
                 <HealthRecordsList patientId={userId} />
-              </div>
-            )}
-            
-            {activeTab === "vitals" && (
-              <div>
+            </div>
+          )}
+          
+          {activeTab === "vitals" && (
+            <div>
                 <p className="text-gray-600 mb-4">
                   Track your vital signs over time to monitor your health status.
                 </p>
                 <p className="text-center py-8 text-gray-500">
                   Vital statistics tracking feature coming soon.
                 </p>
-              </div>
-            )}
-            
-            {activeTab === "medications" && (
-              <div>
+            </div>
+          )}
+          
+          {activeTab === "medications" && (
+            <div>
                 <p className="text-gray-600 mb-4">
                   Set up medication reminders to help you stay on track with your prescriptions.
                 </p>
                 <p className="text-center py-8 text-gray-500">
                   Medication reminder feature coming soon.
                 </p>
-              </div>
-            )}
-            
-            {activeTab === "documents" && (
-              <div>
+            </div>
+          )}
+          
+          {activeTab === "documents" && (
+            <div>
                 <p className="text-gray-600 mb-4">
                   Securely store and access your medical documents and lab results.
                 </p>
                 <p className="text-center py-8 text-gray-500">
                   Document repository feature coming soon.
                 </p>
-              </div>
-            )}
-          </div>
-          
+            </div>
+          )}
+      </div>
+      
           {/* Security Notice */}
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
             <h3 className="font-semibold text-blue-800 mb-2">Your Privacy Matters</h3>

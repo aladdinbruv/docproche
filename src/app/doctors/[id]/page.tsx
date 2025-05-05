@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { FaStar, FaCalendarAlt, FaMapMarkerAlt, FaUserMd, FaClock } from "react-icons/fa";
+import { useDoctor } from '@/hooks/useDoctor';
 
 // Sample doctor data, would come from database in real app
 const doctorData = {
@@ -71,33 +72,7 @@ export default function DoctorDetailsPage() {
   const params = useParams();
   const doctorId = params.id as string;
   
-  const [isLoading, setIsLoading] = useState(true);
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
-  
-  useEffect(() => {
-    // Mock API call to fetch doctor details
-    setTimeout(() => {
-      setDoctor({
-        id: doctorId,
-        name: "Dr. Sarah Johnson",
-        specialty: "Cardiologist",
-        image: "https://randomuser.me/api/portraits/women/76.jpg",
-        bio: "Dr. Sarah Johnson is a board-certified cardiologist with over 15 years of experience in treating various heart conditions. She specializes in preventive cardiology and heart disease management.",
-        experience: "15+ years",
-        education: "MD from Harvard Medical School, Residency at Mass General Hospital",
-        rating: 4.8,
-        reviewCount: 124,
-        location: "New York Medical Center",
-        price: 150,
-        languages: ["English", "Spanish"],
-        availability: {
-          days: ["Monday", "Tuesday", "Wednesday", "Friday"],
-          hours: "9:00 AM - 5:00 PM"
-        }
-      });
-      setIsLoading(false);
-    }, 1000);
-  }, [doctorId]);
+  const { doctor, isLoading, error } = useDoctor(doctorId);
   
   const handleBookAppointment = () => {
     router.push(`/booking/appointment?doctorId=${doctorId}`);
@@ -111,6 +86,17 @@ export default function DoctorDetailsPage() {
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-2">Error Loading Doctor Details</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
       </div>
     );
   }
@@ -152,15 +138,15 @@ export default function DoctorDetailsPage() {
               <div className="flex flex-col items-center text-center">
                 <div className="relative w-40 h-40 rounded-full overflow-hidden mb-4 border-4 border-white shadow-lg">
                   <Image 
-                    src={doctor.image} 
-                    alt={doctor.name}
+                    src={doctor.profile_image || "/images/doctor-placeholder.jpg"} 
+                    alt={doctor.full_name}
                     layout="fill"
                     objectFit="cover"
                     className="rounded-full"
                   />
                 </div>
                 
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">{doctor.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">{doctor.full_name}</h1>
                 <p className="flex items-center text-blue-600 mb-4">
                   <FaUserMd className="mr-1" /> {doctor.specialty}
                 </p>
@@ -185,14 +171,14 @@ export default function DoctorDetailsPage() {
                   <div className="flex items-center p-3 bg-white rounded-lg shadow-sm">
                     <FaClock className="text-blue-500 mr-3" />
                     <div className="text-left">
-                      <span className="text-gray-700 block">{doctor.availability.hours}</span>
-                      <span className="text-sm text-gray-500">{doctor.availability.days.join(", ")}</span>
+                      <span className="text-gray-700 block">{doctor.availability?.hours}</span>
+                      <span className="text-sm text-gray-500">{doctor.availability?.days.join(", ")}</span>
                     </div>
                   </div>
                   
                   <div className="p-3 bg-white rounded-lg shadow-sm">
                     <span className="font-medium text-gray-900">Consultation Fee:</span>
-                    <span className="ml-2 text-blue-600 font-bold">${doctor.price}</span>
+                    <span className="ml-2 text-blue-600 font-bold">${doctor.consultation_fee || "N/A"}</span>
                   </div>
                 </div>
                 
@@ -233,7 +219,7 @@ export default function DoctorDetailsPage() {
                   transition={{ delay: 0.4 }}
                 >
                   <h3 className="font-semibold text-gray-900 mb-2">Experience</h3>
-                  <p className="text-gray-700">{doctor.experience}</p>
+                  <p className="text-gray-700">{doctor.years_of_experience} years</p>
                 </motion.div>
                 
                 <motion.div 
@@ -243,7 +229,7 @@ export default function DoctorDetailsPage() {
                   transition={{ delay: 0.5 }}
                 >
                   <h3 className="font-semibold text-gray-900 mb-2">Languages</h3>
-                  <p className="text-gray-700">{doctor.languages.join(", ")}</p>
+                  <p className="text-gray-700">{doctor.languages?.join(", ")}</p>
                 </motion.div>
                 
                 <motion.div 
@@ -254,10 +240,7 @@ export default function DoctorDetailsPage() {
                 >
                   <h3 className="font-semibold text-gray-900 mb-2">Specialization</h3>
                   <ul className="list-disc list-inside text-gray-700">
-                    <li>Preventive Cardiology</li>
-                    <li>Heart Disease Management</li>
-                    <li>Cardiac Rehabilitation</li>
-                    <li>Hypertension Management</li>
+                    <li>{doctor.specialty}</li>
                   </ul>
                 </motion.div>
               </div>
@@ -275,7 +258,7 @@ export default function DoctorDetailsPage() {
                         <FaStar />
                         <FaStar />
                       </span>
-                      <span className="ml-2 font-medium">John D.</span>
+                      <span className="ml-2 font-medium">{doctor.full_name}</span>
                       <span className="text-gray-500 text-sm ml-auto">2 weeks ago</span>
                     </div>
                     <p className="text-gray-700">
