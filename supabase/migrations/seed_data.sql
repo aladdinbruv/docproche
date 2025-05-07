@@ -379,4 +379,42 @@ BEGIN
     (patient5_id, 'Payment Required', 'Please complete payment for your upcoming appointment with Dr. Smith.', 'system', FALSE, app_id6::TEXT, '2024-04-30 08:25:00+00'),
     (patient3_id, 'New Message', 'You have a new message from Dr. Johnson.', 'message', TRUE, NULL, '2024-02-25 11:35:00+00'),
     (smith_id, 'New Appointment Request', 'Sophia Anderson has requested an appointment on May 15th at 2:00 PM.', 'appointment', TRUE, app_id6::TEXT, '2024-04-30 08:20:00+00');
-END $$; 
+END $$;
+
+-- Add time slots for doctors
+INSERT INTO public.time_slots (id, doctor_id, day_of_week, start_time, end_time, is_available)
+VALUES
+  -- Doctor 1 time slots (Monday)
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 1, '09:00', '10:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 1, '10:00', '11:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 1, '11:00', '12:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 1, '14:00', '15:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 1, '15:00', '16:00', true),
+  
+  -- Doctor 1 time slots (Wednesday)
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 3, '09:00', '10:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 3, '10:00', '11:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 3, '11:00', '12:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 3, '14:00', '15:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 3, '15:00', '16:00', true),
+  
+  -- Doctor 1 time slots (Friday)
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 5, '09:00', '10:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 5, '10:00', '11:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 5, '11:00', '12:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 5, '14:00', '15:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 0), 5, '15:00', '16:00', true),
+  
+  -- Doctor 2 time slots (Tuesday)
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 2, '08:00', '09:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 2, '09:00', '10:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 2, '10:00', '11:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 2, '13:00', '14:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 2, '14:00', '15:00', true),
+  
+  -- Doctor 2 time slots (Thursday)
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 4, '08:00', '09:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 4, '09:00', '10:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 4, '10:00', '11:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 4, '13:00', '14:00', true),
+  (uuid_generate_v4(), (SELECT id FROM public.users WHERE role = 'doctor' LIMIT 1 OFFSET 1), 4, '14:00', '15:00', true); 

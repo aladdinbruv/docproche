@@ -1,59 +1,169 @@
+'use client';
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
+import { useAppointments } from "@/hooks/useAppointments";
+import { useHealthRecords } from "@/hooks/useHealthRecords";
+import { Prescription, Appointment } from "@/types/supabase";
+import { createClientComponentClient } from "@/lib/supabase";
+import { usePayments } from "@/hooks/usePayments";
+import { PaymentSummary } from "@/components";
 
-// Sample data for the dashboard
-const upcomingAppointments = [
-  {
-    id: "apt-123",
-    doctor: "Dr. Sarah Johnson",
-    specialty: "Cardiologist",
-    date: "Mon, 15 July 2024",
-    time: "10:00 AM",
-    type: "In-Person",
-  },
-  {
-    id: "apt-124",
-    doctor: "Dr. Michael Chen",
-    specialty: "Dermatologist",
-    date: "Thu, 25 July 2024",
-    time: "2:30 PM",
-    type: "Video Call",
-  },
-];
+// Define interfaces for types used in the component
+interface Message {
+  id: string;
+  content: string;
+  created_at: string;
+  recipient_id: string;
+  read: boolean;
+  sender?: {
+    full_name: string;
+  };
+  sender_id: string;
+}
 
-const recentPrescriptions = [
-  {
-    id: "prs-456",
-    name: "Lisinopril 10mg",
-    doctor: "Dr. Sarah Johnson",
-    date: "10 July 2024",
-    instructions: "Take once daily with food",
-  },
-  {
-    id: "prs-457",
-    name: "Metformin 500mg",
-    doctor: "Dr. Robert Smith",
-    date: "5 July 2024",
-    instructions: "Take twice daily with meals",
-  },
-];
-
-const unreadMessages = [
-  {
-    id: "msg-789",
-    from: "Dr. Sarah Johnson",
-    message: "Hi John, I wanted to follow up on your recent appointment...",
-    date: "12 July 2024",
-    time: "2:45 PM",
-  },
-];
+// Define the structure that's expected in the component for appointments
+interface ExtendedAppointment extends Appointment {
+  appointment_date: string; // This comes from the date field in the original Appointment
+  appointment_type: string; // This comes from the consultation_type field in the original Appointment
+  doctor?: {
+    full_name: string;
+    specialty?: string;
+  };
+  patient?: {
+    full_name: string;
+  };
+}
 
 export default function DashboardPage() {
+  const { user, isLoading: authLoading, profile } = useAuth();
+  const [unreadMessages, setUnreadMessages] = useState<Message[]>([]);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+  
+  // Fetch payments for the current user
+  const { payments, appointmentDetails, isLoading: paymentsLoading } = usePayments();
+
+  // Fetch appointments for the current user
+  const { 
+    appointments, 
+    loading: appointmentsLoading, 
+    error: appointmentsError
+  } = useAppointments(
+    profile?.id || user?.id || '', 
+    profile?.role as 'patient' | 'doctor' || 'patient', 
+    { includeDoctor: profile?.role === 'patient', includePatient: profile?.role === 'doctor' }
+  );
+
+  // We'll use these default values for useHealthRecords when user is not a patient
+  const defaultHealthRecordsValue = { 
+    prescriptions: [] as Prescription[], 
+    loading: false, 
+    error: null 
+  };
+  
+  // Always call useHealthRecords to maintain hook order, but conditionally use the result
+  const healthRecordsHook = useHealthRecords(profile?.id || user?.id || '');
+  
+  // Determine which health records to use based on user role
+  const {
+    prescriptions,
+    loading: healthRecordsLoading,
+    error: healthRecordsError
+  } = profile?.role === 'patient' ? healthRecordsHook : defaultHealthRecordsValue;
+
+  // Fetch unread messages
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!user && !profile) return;
+      
+      setIsMessagesLoading(true);
+      const supabase = createClientComponentClient();
+      
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*, sender:sender_id(*)')
+          .eq('recipient_id', profile?.id || user?.id || '')
+          .eq('read', false)
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        setUnreadMessages(data || []);
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        setIsMessagesLoading(false);
+      }
+    };
+    
+    fetchMessages();
+  }, [user, profile]);
+
+  // Format date to readable format
+  const formatDate = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+
+  // Format time to readable format
+  const formatTime = (dateString: string) => {
+    const options: Intl.DateTimeFormatOptions = { 
+      hour: 'numeric', 
+      minute: '2-digit', 
+      hour12: true 
+    };
+    return new Date(dateString).toLocaleTimeString('en-US', options);
+  };
+
+  if (authLoading) {
+    return <div className="flex justify-center items-center min-h-[60vh]">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+    </div>;
+  }
+
+  if (!user && !profile) {
+    return <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <h2 className="text-xl font-semibold mb-4">Please sign in to view your dashboard</h2>
+      <Link href="/auth/login" className="px-4 py-2 bg-primary text-white rounded">
+        Sign In
+      </Link>
+    </div>;
+  }
+
+  // Transform appointments to match our expected structure
+  const processedAppointments = appointments.map(apt => {
+    return {
+      ...apt,
+      appointment_date: apt.date,
+      appointment_type: apt.consultation_type === 'video' ? 'virtual' : apt.consultation_type
+    } as ExtendedAppointment;
+  });
+
+  // Get upcoming appointments (status "scheduled" or "confirmed")
+  const upcomingAppointments = processedAppointments
+    .filter(apt => apt.status === 'confirmed' || apt.status === 'pending')
+    .sort((a, b) => 
+      new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime()
+    );
+
+  // Get active prescriptions (not expired)
+  const activePrescriptions = prescriptions.filter(
+    (prescription: Prescription) => 
+      prescription.expiry_date ? new Date(prescription.expiry_date) > new Date() : true
+  );
+
   return (
     <div>
       {/* Page header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, John Doe</p>
+        <p className="text-muted-foreground">Welcome back, {profile?.full_name || user?.email?.split('@')[0] || 'User'}</p>
       </div>
       
       {/* Stats cards */}
@@ -79,8 +189,14 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{upcomingAppointments.length}</span>
-            <span className="text-muted-foreground">scheduled</span>
+            {appointmentsLoading ? (
+              <span className="text-3xl font-bold animate-pulse">...</span>
+            ) : (
+              <>
+                <span className="text-3xl font-bold">{upcomingAppointments.length}</span>
+                <span className="text-muted-foreground">scheduled</span>
+              </>
+            )}
           </div>
           <Link 
             href="/dashboard/appointments" 
@@ -92,8 +208,8 @@ export default function DashboardPage() {
         
         <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Active Prescriptions</h3>
-            <div className="bg-primary/10 text-primary p-2 rounded-full">
+            <h3 className="font-medium">Payments</h3>
+            <div className="bg-emerald-100 text-emerald-600 p-2 rounded-full">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -105,284 +221,399 @@ export default function DashboardPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{recentPrescriptions.length}</span>
-            <span className="text-muted-foreground">active</span>
+            {paymentsLoading ? (
+              <span className="text-3xl font-bold animate-pulse">...</span>
+            ) : (
+              <>
+                <span className="text-3xl font-bold">${payments.reduce((total, payment) => 
+                  payment.status === 'successful' ? total + payment.amount : total, 0).toFixed(2)}</span>
+                <span className="text-muted-foreground">paid</span>
+              </>
+            )}
           </div>
           <Link 
-            href="/dashboard/prescriptions" 
+            href="/payments" 
             className="text-sm text-primary hover:underline mt-4 inline-block"
           >
-            Manage prescriptions →
+            View payment history →
           </Link>
         </div>
         
-        <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Unread Messages</h3>
-            <div className="bg-primary/10 text-primary p-2 rounded-full">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                />
-              </svg>
+        {profile?.role === 'patient' && (
+          <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Prescriptions</h3>
+              <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
             </div>
+            <div className="flex items-baseline gap-2">
+              {healthRecordsLoading ? (
+                <span className="text-3xl font-bold animate-pulse">...</span>
+              ) : (
+                <>
+                  <span className="text-3xl font-bold">{activePrescriptions.length}</span>
+                  <span className="text-muted-foreground">active</span>
+                </>
+              )}
+            </div>
+            <Link 
+              href="/prescriptions" 
+              className="text-sm text-primary hover:underline mt-4 inline-block"
+            >
+              View prescriptions →
+            </Link>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{unreadMessages.length}</span>
-            <span className="text-muted-foreground">unread</span>
+        )}
+        
+        {profile?.role === 'doctor' && (
+          <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Patients</h3>
+              <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              {appointmentsLoading ? (
+                <span className="text-3xl font-bold animate-pulse">...</span>
+              ) : (
+                <>
+                  <span className="text-3xl font-bold">
+                    {Array.from(new Set(processedAppointments.map(apt => apt.patient_id))).length}
+                  </span>
+                  <span className="text-muted-foreground">total</span>
+                </>
+              )}
+            </div>
+            <Link 
+              href="/dashboard/patients" 
+              className="text-sm text-primary hover:underline mt-4 inline-block"
+            >
+              View all patients →
+            </Link>
           </div>
-          <Link 
-            href="/dashboard/messages" 
-            className="text-sm text-primary hover:underline mt-4 inline-block"
-          >
-            View messages →
-          </Link>
-        </div>
+        )}
       </div>
       
-      {/* Upcoming appointments */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Upcoming Appointments</h2>
-          <Link 
-            href="/dashboard/appointments" 
-            className="text-sm text-primary hover:underline"
-          >
-            View all
-          </Link>
-        </div>
-        
-        <div className="space-y-4">
-          {upcomingAppointments.map((appointment) => (
-            <div key={appointment.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] flex flex-col md:flex-row md:items-center justify-between">
-              <div className="flex-1 mb-4 md:mb-0">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-primary/10 text-primary p-2 rounded-full">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">{appointment.doctor}</h3>
-                    <p className="text-sm text-muted-foreground">{appointment.specialty}</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 text-sm">
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-muted-foreground mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    {appointment.date}
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 text-muted-foreground mr-1"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {appointment.time}
-                  </div>
-                  
-                  <div className="flex items-center">
-                    {appointment.type === "Video Call" ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-muted-foreground mr-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-muted-foreground mr-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                    )}
-                    {appointment.type}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                {appointment.type === "Video Call" && (
-                  <Link
-                    href={`/dashboard/appointments/${appointment.id}/join`}
-                    className="btn-primary py-2 px-4"
-                  >
-                    Join Call
-                  </Link>
-                )}
-                <Link
-                  href={`/dashboard/appointments/${appointment.id}`}
-                  className="btn-secondary py-2 px-4"
-                >
-                  Details
+      {/* Main dashboard content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left column - Upcoming appointments + Payments for patients */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Upcoming appointments */}
+          <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-[var(--border)]">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Upcoming Appointments</h2>
+                <Link href="/appointments" className="text-sm text-primary hover:underline">
+                  View all
                 </Link>
               </div>
             </div>
-          ))}
-          
-          {upcomingAppointments.length === 0 && (
-            <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
-              <p className="text-muted-foreground">You have no upcoming appointments.</p>
-              <Link 
-                href="/doctors" 
-                className="btn-primary inline-block mt-4"
-              >
-                Book an Appointment
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Secondary content section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Recent prescriptions */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Recent Prescriptions</h2>
-            <Link 
-              href="/dashboard/prescriptions" 
-              className="text-sm text-primary hover:underline"
-            >
-              View all
-            </Link>
-          </div>
-          
-          <div className="space-y-4">
-            {recentPrescriptions.map((prescription) => (
-              <div key={prescription.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-medium">{prescription.name}</h3>
-                  <span className="text-sm text-muted-foreground">{prescription.date}</span>
-                </div>
-                <p className="text-sm text-muted-foreground mb-2">Prescribed by {prescription.doctor}</p>
-                <p className="text-sm italic">{prescription.instructions}</p>
-                <div className="mt-3 flex justify-end">
-                  <Link 
-                    href={`/dashboard/prescriptions/${prescription.id}`} 
-                    className="text-sm text-primary hover:underline"
-                  >
-                    View details
-                  </Link>
-                </div>
-              </div>
-            ))}
             
-            {recentPrescriptions.length === 0 && (
-              <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
-                <p className="text-muted-foreground">You have no recent prescriptions.</p>
+            {appointmentsLoading ? (
+              <div className="p-6 flex justify-center">
+                <div className="h-10 w-10 border-t-2 border-b-2 border-primary rounded-full animate-spin"></div>
+              </div>
+            ) : upcomingAppointments.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-muted-foreground">No upcoming appointments</p>
+                <Link href="/doctors" className="mt-2 inline-block text-primary hover:underline">
+                  Book an appointment
+                </Link>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {upcomingAppointments.slice(0, 5).map((appointment) => (
+                  <div key={appointment.id} className="p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">
+                          {profile?.role === 'patient' 
+                            ? `Dr. ${appointment.doctor?.full_name || 'Unknown'}`
+                            : `${appointment.patient?.full_name || 'Unknown Patient'}`
+                          }
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {profile?.role === 'patient' && appointment.doctor?.specialty 
+                            ? appointment.doctor.specialty 
+                            : appointment.appointment_type === 'virtual' 
+                              ? 'Video Consultation' 
+                              : 'In-person Visit'
+                          }
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">{formatDate(appointment.appointment_date)}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.time_slot}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex justify-between items-center">
+                      <span 
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                          ${appointment.status === 'confirmed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                          }`
+                        }
+                      >
+                        {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                      </span>
+                      <Link 
+                        href={`/appointments/${appointment.id}`} 
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View details
+                      </Link>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
-        
-        {/* Recent messages */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Unread Messages</h2>
-            <Link 
-              href="/dashboard/messages" 
-              className="text-sm text-primary hover:underline"
-            >
-              View all
-            </Link>
+          
+          {/* Payment History Section (for patients only) */}
+          {profile?.role === 'patient' && (
+            <PaymentSummary 
+              payments={payments} 
+              appointmentDetails={appointmentDetails}
+              className="mb-6" 
+            />
+          )}
+          
+          {/* Recent messages */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Recent Messages</h2>
+              <Link 
+                href="/dashboard/messages" 
+                className="text-sm text-primary hover:underline"
+              >
+                View all
+              </Link>
+            </div>
+            
+            {isMessagesLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading messages...</p>
+              </div>
+            ) : unreadMessages.length === 0 ? (
+              <div className="text-center py-8 border rounded-lg">
+                <p className="text-muted-foreground">No unread messages</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {unreadMessages.slice(0, 3).map((message) => (
+                  <div key={message.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-primary/10 text-primary p-2 rounded-full">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{message.sender?.full_name || 'User'}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(message.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm mb-3 line-clamp-2">{message.content}</p>
+                    <Link 
+                      href={`/dashboard/messages/${message.id}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Read message →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
-          <div className="space-y-4">
-            {unreadMessages.map((message) => (
-              <div key={message.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-medium">{message.from}</h3>
-                  <span className="text-xs text-muted-foreground">{message.date}, {message.time}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{message.message}</p>
-                <div className="mt-3 flex justify-end">
-                  <Link 
-                    href={`/dashboard/messages/${message.id}`} 
-                    className="text-sm text-primary hover:underline"
-                  >
-                    View conversation
-                  </Link>
-                </div>
+          {/* Health records section for patients */}
+          {profile?.role === 'patient' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Prescriptions</h2>
+                <Link 
+                  href="/dashboard/health-records" 
+                  className="text-sm text-primary hover:underline"
+                >
+                  View all records
+                </Link>
               </div>
-            ))}
+              
+              {healthRecordsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-2 text-muted-foreground">Loading health records...</p>
+                </div>
+              ) : healthRecordsError ? (
+                <div className="text-center py-8 text-red-500">
+                  <p>Error loading health records. Please try again later.</p>
+                </div>
+              ) : activePrescriptions.length === 0 ? (
+                <div className="text-center py-8 border rounded-lg">
+                  <p className="text-muted-foreground">No active prescriptions</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activePrescriptions.slice(0, 3).map((prescription) => (
+                    <div key={prescription.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="bg-primary/10 text-primary p-2 rounded-full">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{
+                            // Display medication information from the medications JSON field
+                            typeof prescription.medications === 'object' && prescription.medications !== null
+                              ? Array.isArray(prescription.medications)
+                                ? prescription.medications[0]?.name || 'Medication'
+                                : 'Medication'
+                              : 'Medication'
+                          }</h3>
+                          <p className="text-xs text-muted-foreground">
+                            Prescribed on {new Date(prescription.issue_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm mb-1">
+                        <span className="font-medium">Dosage:</span> {
+                          typeof prescription.medications === 'object' && prescription.medications !== null
+                            ? Array.isArray(prescription.medications)
+                              ? prescription.medications[0]?.dosage || 'As directed'
+                              : 'As directed'
+                            : 'As directed'
+                        }
+                      </p>
+                      <p className="text-sm mb-3">
+                        <span className="font-medium">Instructions:</span> {prescription.instructions || 'Follow doctor\'s instructions'}
+                      </p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">
+                          {prescription.expiry_date ? (
+                            <>Expires: {new Date(prescription.expiry_date).toLocaleDateString()}</>
+                          ) : (
+                            <>No expiration date</>
+                          )}
+                        </span>
+                        <Link 
+                          href={`/dashboard/health-records/prescriptions/${prescription.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          View details →
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Right column - Recent messages */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Recent messages */}
+          <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-[var(--border)]">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Recent Messages</h2>
+                <Link href="/dashboard/messages" className="text-sm text-primary hover:underline">
+                  View all
+                </Link>
+              </div>
+            </div>
             
-            {unreadMessages.length === 0 && (
-              <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] text-center">
-                <p className="text-muted-foreground">You have no unread messages.</p>
+            {isMessagesLoading ? (
+              <div className="p-6 flex justify-center">
+                <div className="h-10 w-10 border-t-2 border-b-2 border-primary rounded-full animate-spin"></div>
+              </div>
+            ) : unreadMessages.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-muted-foreground">No unread messages</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--border)]">
+                {unreadMessages.slice(0, 5).map((message) => (
+                  <div key={message.id} className="p-4 hover:bg-muted/50 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium">{message.sender?.full_name || 'User'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(message.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Link 
+                          href={`/dashboard/messages/${message.id}`}
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Read message →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

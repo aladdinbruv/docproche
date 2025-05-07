@@ -32,6 +32,7 @@ export default function RegisterPage() {
   };
 
   const handleCaptchaVerify = (token: string) => {
+    console.log("Captcha verified with token:", token ? `${token.substring(0, 10)}...` : "No token");
     setFormData(prev => ({
       ...prev,
       captchaToken: token
@@ -58,7 +59,12 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!formData.captchaToken) {
+    // Allow submission without captcha in development with the test key
+    const isTestEnvironment = 
+      process.env.NODE_ENV === 'development' && 
+      process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY === '10000000-ffff-ffff-ffff-000000000001';
+
+    if (!formData.captchaToken && !isTestEnvironment) {
       setError("Please complete the captcha verification");
       return;
     }
@@ -96,7 +102,8 @@ export default function RegisterPage() {
       }
       
       console.log('Registration successful:', data);
-      router.push('/auth/verify-email');
+      // Redirect to login page with a success message
+      router.push('/auth/login?message=registration_successful');
     } catch (err) {
       console.error("Registration error:", err);
       setError(err instanceof Error ? err.message : 'Failed to create account');
@@ -125,7 +132,7 @@ export default function RegisterPage() {
               Patient
             </Link>
             <Link 
-              href="/auth/register?role=doctor" 
+              href="/auth/register/doctor" 
               className={`flex-1 py-2 border-b-2 text-center font-medium ${role === 'doctor' ? 'border-primary' : 'border-border hover:border-primary transition-colors'}`}
             >
               Doctor
@@ -231,7 +238,11 @@ export default function RegisterPage() {
             <button
               type="submit"
               className="btn-primary w-full"
-              disabled={isLoading || !formData.captchaToken}
+              disabled={isLoading || 
+                (!formData.captchaToken && 
+                  !(process.env.NODE_ENV === 'development' && 
+                    process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY === '10000000-ffff-ffff-ffff-000000000001')) || 
+                !formData.terms}
             >
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </button>

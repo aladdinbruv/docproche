@@ -12,7 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface TimeSlot {
   id: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   available: boolean;
 }
 
@@ -24,28 +25,26 @@ interface Doctor {
   rating: number;
   reviewCount: number;
   price: number;
-  availableDates?: string[];
+  availableDays?: string[];
 }
+
+const defaultDoctorImage = "https://via.placeholder.com/150";
 
 export default function AppointmentPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const doctorId = searchParams.get("doctorId");
-  
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
-  const [consultationType, setConsultationType] = useState<"video" | "inPerson">("video");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>("");
+  const [consultationType, setConsultationType] = useState<"video" | "inPerson">("video");
   const { user } = useAuth();
   const supabase = createClientComponentClient();
-  
-  // Add default placeholder image
-  const defaultDoctorImage = "/images/doctor-placeholder.jpg";
-  
+
   useEffect(() => {
     if (!doctorId) {
       router.push('/doctors');
@@ -57,7 +56,7 @@ export default function AppointmentPage() {
       return;
     }
     
-    async function fetchDoctorAndTimeSlots() {
+    async function fetchDoctorInfo() {
       setIsLoading(true);
       
       try {
@@ -79,8 +78,8 @@ export default function AppointmentPage() {
         // Ensure doctor has all required fields
         const sanitizedDoctor = {
           ...doctorData,
-          image: doctorData.image || null,
-          name: doctorData.name || doctorData.full_name || "Doctor",
+          image: doctorData.profile_image || defaultDoctorImage,
+          name: doctorData.full_name || "Doctor",
           specialty: doctorData.specialty || "General Medicine",
           rating: doctorData.rating || 5.0,
           reviewCount: doctorData.review_count || 0,
@@ -89,19 +88,19 @@ export default function AppointmentPage() {
         
         setDoctor(sanitizedDoctor);
         
-        // Fetch available time slots
-        const { data: timeSlotsData, error: timeSlotsError } = await supabase
+        // Fetch doctor's available days from time_slots table
+        const { data: availableDaysData, error: availableDaysError } = await supabase
           .from('time_slots')
-          .select('*')
+          .select('day_of_week')
           .eq('doctor_id', doctorId)
           .eq('is_available', true);
           
-        if (timeSlotsError) {
-          console.error("Error fetching time slots:", timeSlotsError);
+        if (availableDaysError) {
+          console.error("Error fetching available days:", availableDaysError);
         }
         
         // Process available dates from time slots
-        const availableDays = doctorData.available_days || [];
+        const uniqueDays = [...new Set(availableDaysData?.map(slot => slot.day_of_week) || [])];
         const today = new Date();
         const nextMonth = new Date();
         nextMonth.setMonth(today.getMonth() + 1);
@@ -112,37 +111,54 @@ export default function AppointmentPage() {
         
         while (current <= nextMonth) {
           // Check if day of week is in available days
-          if (availableDays.includes(current.getDay().toString())) {
+          if (uniqueDays.includes(current.getDay())) {
             dates.push(new Date(current).toISOString());
           }
           current.setDate(current.getDate() + 1);
         }
         
         setAvailableDates(dates);
-        
-        // Create time slots from database
-        if (timeSlotsData) {
-          const slots: TimeSlot[] = timeSlotsData.map(slot => ({
-            id: slot.id,
-            time: slot.start_time,
-            available: true
-          }));
-          setTimeSlots(slots);
-        }
-        
         setIsLoading(false);
       } catch (err) {
-        console.error("Error in fetchDoctorAndTimeSlots:", err);
+        console.error("Error in fetchDoctorInfo:", err);
         setIsLoading(false);
         router.push('/doctors');
       }
     }
     
-    fetchDoctorAndTimeSlots();
+    fetchDoctorInfo();
   }, [doctorId, router, supabase, user]);
+  
+  // Fetch time slots when date is selected
+  useEffect(() => {
+    if (!selectedDate || !doctorId) return;
+    
+    async function fetchTimeSlots() {
+      setLoadingTimeSlots(true);
+      setTimeSlots([]);
+      
+      try {
+        const response = await fetch(`/api/appointments/available-slots?doctorId=${doctorId}&date=${selectedDate?.toISOString()}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch available time slots');
+        }
+        
+        const data = await response.json();
+        setTimeSlots(data.time_slots || []);
+      } catch (error) {
+        console.error("Error fetching time slots:", error);
+      } finally {
+        setLoadingTimeSlots(false);
+      }
+    }
+    
+    fetchTimeSlots();
+  }, [selectedDate, doctorId]);
   
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
+    setSelectedTimeSlot("");
   };
   
   const handleTimeSelect = (timeId: string) => {
@@ -159,7 +175,14 @@ export default function AppointmentPage() {
       return;
     }
     
-    router.push(`/booking/confirmation?doctorId=${doctor?.id}&date=${selectedDate.toISOString()}&timeSlot=${selectedTimeSlot}&type=${consultationType}`);
+    const selectedSlot = timeSlots.find(slot => slot.id === selectedTimeSlot);
+    
+    if (!selectedSlot) {
+      alert("Please select a valid time slot");
+      return;
+    }
+    
+    router.push(`/booking/confirmation?doctorId=${doctor?.id}&date=${selectedDate.toISOString()}&timeSlot=${selectedTimeSlot}&time=${selectedSlot.startTime}&type=${consultationType}`);
   };
   
   if (isLoading) {
@@ -250,7 +273,7 @@ export default function AppointmentPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Location</span>
                   <span className="text-gray-900 flex items-center">
-                    <FaMapMarkerAlt className="mr-1 text-red-500" /> New York Medical Center
+                    <FaMapMarkerAlt className="mr-1 text-red-500" /> Medical Center
                   </span>
                 </div>
               </div>
@@ -286,24 +309,45 @@ export default function AppointmentPage() {
                     <FaClock className="mr-1 text-blue-500" /> Available Time Slots
                   </h4>
                   
-                  <div className="grid grid-cols-2 gap-2">
-                    {timeSlots.map((slot) => (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleTimeSelect(slot.id)}
-                        disabled={!slot.available}
-                        className={`p-2 text-center rounded-lg transition-all transform hover:scale-105 ${
-                          selectedTimeSlot === slot.id
-                            ? 'bg-blue-500 text-white'
-                            : slot.available
-                            ? 'bg-white border border-gray-200 hover:border-blue-300'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        {slot.time}
-                      </button>
-                    ))}
-                  </div>
+                  {loadingTimeSlots ? (
+                    <div className="flex justify-center items-center py-8">
+                      <motion.div 
+                        className="h-8 w-8 border-t-2 border-blue-500 border-solid rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                    </div>
+                  ) : selectedDate ? (
+                    timeSlots.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {timeSlots.map((slot) => (
+                          <button
+                            key={slot.id}
+                            onClick={() => handleTimeSelect(slot.id)}
+                            disabled={!slot.available}
+                            className={`p-2 text-center rounded-lg transition-all transform hover:scale-105 ${
+                              selectedTimeSlot === slot.id
+                                ? 'bg-blue-500 text-white'
+                                : slot.available
+                                ? 'bg-white border border-gray-200 hover:border-blue-300'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {slot.startTime}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center text-gray-500">
+                        <p>No available time slots for this date.</p>
+                        <p className="text-sm">Please select another date.</p>
+                      </div>
+                    )
+                  ) : (
+                    <div className="py-8 text-center text-gray-500">
+                      <p>Please select a date to see available time slots.</p>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -374,64 +418,66 @@ export default function AppointmentPage() {
         </div>
         
         {/* Summary Section */}
-        <motion.div 
-          className="mt-8 bg-white rounded-xl shadow-md overflow-hidden"
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Your Appointment Summary</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center mb-2">
-                  <FaUserMd className="text-blue-500 mr-2" />
-                  <h4 className="font-medium">Doctor</h4>
-                </div>
-                <p className="text-gray-700">{doctor.name}</p>
-                <p className="text-sm text-gray-500">{doctor.specialty}</p>
-              </div>
+        {selectedDate && selectedTimeSlot && (
+          <motion.div 
+            className="mt-8 bg-white rounded-xl shadow-md overflow-hidden"
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Your Appointment Summary</h3>
               
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center mb-2">
-                  <FaCalendarAlt className="text-blue-500 mr-2" />
-                  <h4 className="font-medium">Date & Time</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <FaUserMd className="text-blue-500 mr-2" />
+                    <h4 className="font-medium">Doctor</h4>
+                  </div>
+                  <p className="text-gray-700">{doctor.name}</p>
+                  <p className="text-sm text-gray-500">{doctor.specialty}</p>
                 </div>
-                <p className="text-gray-700">
-                  {selectedDate ? selectedDate.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  }) : 'Not selected'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {selectedTimeSlot ? timeSlots.find(slot => slot.id === selectedTimeSlot)?.time : 'Not selected'}
-                </p>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex items-center mb-2">
-                  {consultationType === "video" ? (
-                    <FaVideo className="text-blue-500 mr-2" />
-                  ) : (
-                    <FaMapMarkerAlt className="text-blue-500 mr-2" />
-                  )}
-                  <h4 className="font-medium">Consultation Type</h4>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <FaCalendarAlt className="text-blue-500 mr-2" />
+                    <h4 className="font-medium">Date & Time</h4>
+                  </div>
+                  <p className="text-gray-700">
+                    {selectedDate ? selectedDate.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    }) : 'Not selected'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {timeSlots.find(slot => slot.id === selectedTimeSlot)?.startTime || 'Not selected'}
+                  </p>
                 </div>
-                <p className="text-gray-700">
-                  {consultationType === "video" ? "Video Consultation" : "In-Person Visit"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {consultationType === "video" 
-                    ? "You'll receive a link before the appointment" 
-                    : "Visit New York Medical Center"}
-                </p>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    {consultationType === "video" ? (
+                      <FaVideo className="text-blue-500 mr-2" />
+                    ) : (
+                      <FaMapMarkerAlt className="text-blue-500 mr-2" />
+                    )}
+                    <h4 className="font-medium">Consultation Type</h4>
+                  </div>
+                  <p className="text-gray-700">
+                    {consultationType === "video" ? "Video Consultation" : "In-Person Visit"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {consultationType === "video" 
+                      ? "You'll receive a link before the appointment" 
+                      : "Visit Medical Center"}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );

@@ -17,14 +17,18 @@ interface Doctor {
   consultation_fee?: number;
 }
 
+const defaultDoctorImage = "https://via.placeholder.com/150";
+
 export default function ConfirmationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
   const doctorId = searchParams.get("doctorId");
   const dateStr = searchParams.get("date");
   const timeSlotId = searchParams.get("timeSlot");
-  const consultationType = searchParams.get("type") as "video" | "inPerson";
+  const timeStr = searchParams.get("time");
+  const consultationType = searchParams.get("type") as "video" | "inPerson" | null;
+  const sessionId = searchParams.get("session_id");
+  const canceled = searchParams.get("canceled");
   
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -32,17 +36,11 @@ export default function ConfirmationPage() {
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>("");
-  const [symptoms, setSymptoms] = useState("");
-  
+  const [symptoms, setSymptoms] = useState<string>("");
   const { user } = useAuth();
   const supabase = createClientComponentClient();
-  
-  const sessionId = searchParams.get("session_id");
-  
-  // Add default placeholder image
-  const defaultDoctorImage = "/images/doctor-placeholder.jpg";
-  
-  // Check for successful payment
+
+  // Check payment status if coming back from Stripe
   useEffect(() => {
     const checkPaymentStatus = async () => {
       if (sessionId) {
@@ -90,6 +88,14 @@ export default function ConfirmationPage() {
     checkPaymentStatus();
   }, [sessionId, supabase]);
   
+  // If payment was canceled, show message
+  useEffect(() => {
+    if (canceled === 'true') {
+      // If session was canceled, show message
+      alert("Payment was canceled. Please try again or select a different payment method.");
+    }
+  }, [canceled]);
+  
   useEffect(() => {
     if (!doctorId || !dateStr || !timeSlotId || !consultationType) {
       router.push('/doctors');
@@ -97,12 +103,16 @@ export default function ConfirmationPage() {
     }
     
     if (!user) {
-      router.push(`/auth/login?redirectTo=/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}`);
+      router.push(`/auth/login?redirectTo=/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&time=${timeStr}&type=${consultationType}`);
       return;
     }
     
     if (dateStr) {
       setSelectedDate(new Date(dateStr));
+    }
+    
+    if (timeStr) {
+      setSelectedTime(timeStr);
     }
     
     async function fetchAppointmentDetails() {
@@ -141,17 +151,20 @@ export default function ConfirmationPage() {
         
         setDoctor(sanitizedDoctor);
         
-        // Fetch time slot details
-        const { data: timeSlotData, error: timeSlotError } = await supabase
-          .from('time_slots')
-          .select('*')
-          .eq('id', timeSlotId)
-          .maybeSingle();
-        
-        if (timeSlotError) {
-          console.error("Error fetching time slot:", timeSlotError);
-        } else if (timeSlotData) {
-          setSelectedTime(timeSlotData.start_time);
+        // Only fetch time slot details if time parameter is not provided
+        if (!timeStr) {
+          // Fetch time slot details
+          const { data: timeSlotData, error: timeSlotError } = await supabase
+            .from('time_slots')
+            .select('*')
+            .eq('id', timeSlotId)
+            .maybeSingle();
+          
+          if (timeSlotError) {
+            console.error("Error fetching time slot:", timeSlotError);
+          } else if (timeSlotData) {
+            setSelectedTime(timeSlotData.start_time);
+          }
         }
         
         setIsLoading(false);
@@ -163,7 +176,7 @@ export default function ConfirmationPage() {
     }
     
     fetchAppointmentDetails();
-  }, [doctorId, dateStr, timeSlotId, consultationType, router, supabase, user]);
+  }, [doctorId, dateStr, timeSlotId, timeStr, consultationType, router, supabase, user]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,8 +229,8 @@ export default function ConfirmationPage() {
           body: JSON.stringify({
             appointmentId: appointmentId,
             amount: appointmentAmount,
-            successUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}&session_id={CHECKOUT_SESSION_ID}`,
-            cancelUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&type=${consultationType}&canceled=true`
+            successUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&time=${selectedTime}&type=${consultationType}&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/booking/confirmation?doctorId=${doctorId}&date=${dateStr}&timeSlot=${timeSlotId}&time=${selectedTime}&type=${consultationType}&canceled=true`
           }),
         });
         

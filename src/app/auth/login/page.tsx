@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSearchParams } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const { signIn, isLoading } = useAuth();
   const searchParams = useSearchParams();
   const role = searchParams.get('role') === 'doctor' ? 'doctor' : 'patient';
+  const message = searchParams.get('message');
   const captchaRef = useRef<HCaptcha>(null);
   
   const [formData, setFormData] = useState({
@@ -19,6 +20,14 @@ export default function LoginPage() {
     captchaToken: ''
   });
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Handle success message from URL parameter
+  useEffect(() => {
+    if (message === 'registration_successful') {
+      setSuccessMessage('Account created successfully! Please log in with your credentials.');
+    }
+  }, [message]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type, checked } = e.target;
@@ -29,6 +38,7 @@ export default function LoginPage() {
   };
 
   const handleCaptchaVerify = (token: string) => {
+    console.log("Captcha verified with token:", token ? `${token.substring(0, 10)}...` : "No token");
     setFormData(prev => ({
       ...prev,
       captchaToken: token
@@ -38,8 +48,14 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
-    if (!formData.captchaToken) {
+    // Allow login without captcha in development with the test key
+    const isTestEnvironment = 
+      process.env.NODE_ENV === 'development' && 
+      process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY === '10000000-ffff-ffff-ffff-000000000001';
+
+    if (!formData.captchaToken && !isTestEnvironment) {
       setError("Please complete the captcha verification");
       return;
     }
@@ -79,6 +95,12 @@ export default function LoginPage() {
               Doctor
             </Link>
           </div>
+          
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative">
+              {successMessage}
+            </div>
+          )}
           
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
@@ -147,7 +169,10 @@ export default function LoginPage() {
             <button
               type="submit"
               className="btn-primary w-full"
-              disabled={isLoading || !formData.captchaToken}
+              disabled={isLoading || 
+                (!formData.captchaToken && 
+                  !(process.env.NODE_ENV === 'development' && 
+                    process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY === '10000000-ffff-ffff-ffff-000000000001'))}
             >
               {isLoading ? 'Logging in...' : 'Log In'}
             </button>
