@@ -40,6 +40,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useVideoCall } from '@/hooks/useVideoCall';
+import { VideoParticipant } from '@/components/VideoParticipant';
 
 type Appointment = {
   id: string;
@@ -105,6 +107,18 @@ export default function DoctorConsultationPage() {
   );
   const { createHealthRecord } = useHealthRecords();
 
+  const {
+    room,
+    localTracks,
+    remoteParticipants,
+    isConnecting,
+    error: videoError,
+    joinRoom,
+    leaveRoom,
+    toggleAudio,
+    toggleVideo
+  } = useVideoCall();
+
   // Get appointment details
   useEffect(() => {
     if (!authLoading && (!user || profile?.role !== 'doctor')) {
@@ -140,6 +154,18 @@ export default function DoctorConsultationPage() {
       }
     };
   }, [isCallActive, appointment]);
+
+  // Attach local video track
+  useEffect(() => {
+    const videoTrack = localTracks.find(track => track.kind === 'video');
+    
+    if (videoTrack && localVideoRef.current) {
+      videoTrack.attach(localVideoRef.current);
+      return () => {
+        videoTrack.detach();
+      };
+    }
+  }, [localTracks]);
 
   const fetchAppointmentDetails = async () => {
     setIsLoading(true);
@@ -191,64 +217,28 @@ export default function DoctorConsultationPage() {
   };
 
   const startVideoCall = async () => {
+    if (!appointment) return;
+    
     try {
-      // Get user media (video and audio)
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: isVideoOn, 
-        audio: isAudioOn 
-      });
+      setIsCallActive(true);
       
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      await joinRoom(
+        appointment.id,
+        `doctor-${profile?.id || user?.id}`
+      );
       
-      // In a real application, this is where you would:
-      // 1. Set up WebRTC connection
-      // 2. Signal to the patient that the doctor is ready
-      // 3. Establish peer-to-peer connection
-      
-      // For demo purposes, we're just showing the local video
-      
-      // Add a simulated patient message after 2 seconds
-      setTimeout(() => {
-        addChatMessage("Hello doctor, I can hear you. How are you today?", "patient");
-      }, 2000);
+      // Update appointment status to in-progress (optional)
+      await updateAppointmentStatus(appointment.id, 'in-progress');
       
     } catch (error) {
-      console.error('Error accessing media devices:', error);
-      alert('Could not access camera or microphone. Please check permissions.');
+      console.error('Error starting video call:', error);
+      alert('Could not start video call. Please try again.');
       setIsCallActive(false);
     }
   };
 
-  const toggleVideo = () => {
-    if (localVideoRef.current?.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      const videoTracks = stream.getVideoTracks();
-      videoTracks.forEach(track => {
-        track.enabled = !isVideoOn;
-      });
-    }
-    setIsVideoOn(!isVideoOn);
-  };
-
-  const toggleAudio = () => {
-    if (localVideoRef.current?.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      const audioTracks = stream.getAudioTracks();
-      audioTracks.forEach(track => {
-        track.enabled = !isAudioOn;
-      });
-    }
-    setIsAudioOn(!isAudioOn);
-  };
-
   const endCall = () => {
-    if (localVideoRef.current?.srcObject) {
-      const stream = localVideoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      localVideoRef.current.srcObject = null;
-    }
+    leaveRoom();
     setIsCallActive(false);
   };
 
@@ -309,17 +299,27 @@ export default function DoctorConsultationPage() {
       }
       
       // Update appointment status
-      await updateAppointmentStatus(appointment.id, 'completed' as any, notes);
+      const success = await updateAppointmentStatus(appointment.id, 'completed' as any, notes);
       
-      // Create health record for the consultation
+      if (!success) {
+        throw new Error('Failed to update appointment status');
+      }
+      
+      // Only create health record if we have diagnosis or treatment information
       if (diagnosis.trim() || treatment.trim()) {
-        await createHealthRecord({
-          patient_id: appointment.patient_id,
-          appointment_id: appointment.id,
-          record_type: 'Consultation',
-          title: `Consultation on ${format(parseISO(appointment.date), 'MMMM d, yyyy')}`,
-          description: `Diagnosis: ${diagnosis}\n\nTreatment Plan: ${treatment}${medications ? `\n\nMedications: ${medications}` : ''}${followUpDate ? `\n\nFollow-up Date: ${followUpDate}` : ''}`,
-        });
+        try {
+          await createHealthRecord({
+            patient_id: appointment.patient_id,
+            appointment_id: appointment.id,
+            record_type: 'Consultation',
+            title: `Consultation on ${format(parseISO(appointment.date), 'MMMM d, yyyy')}`,
+            description: `Diagnosis: ${diagnosis}\n\nTreatment Plan: ${treatment}${medications ? `\n\nMedications: ${medications}` : ''}${followUpDate ? `\n\nFollow-up Date: ${followUpDate}` : ''}`,
+          });
+        } catch (recordError) {
+          console.error('Error creating health record:', recordError);
+          // Continue even if health record creation fails
+          // The appointment status has been updated successfully
+        }
       }
       
       alert('Consultation completed successfully.');
@@ -517,51 +517,35 @@ export default function DoctorConsultationPage() {
                 <div className="relative w-full bg-black aspect-video">
                   {isCallActive ? (
                     <>
-                      {/* Main video stream (patient) */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <video
-                          ref={remoteVideoRef}
-                          className="w-full h-full object-cover"
-                          autoPlay
-                          playsInline
-                        >
-                          Your browser does not support video calls.
-                        </video>
-                        
-                        {/* Placeholder for demo */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
-                          <div className="text-center">
-                            <User className="h-24 w-24 mx-auto mb-4 opacity-20" />
-                            <p className="text-xl">Waiting for patient to join...</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Doctor's local video (picture-in-picture) */}
-                      <div className="absolute bottom-4 right-4 w-48 h-36 bg-gray-900 rounded-lg overflow-hidden border-2 border-white">
-                        <video
-                          ref={localVideoRef}
-                          className="w-full h-full object-cover"
-                          autoPlay
-                          playsInline
-                          muted
-                        >
-                          Your browser does not support video calls.
-                        </video>
-                        {!isVideoOn && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                            <User className="h-10 w-10 text-gray-400" />
+                      {/* Main video - remote participant */}
+                      <div className="absolute inset-0">
+                        {remoteParticipants.length > 0 ? (
+                          <VideoParticipant participant={remoteParticipants[0]} />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
+                            <div className="text-center">
+                              <User className="h-24 w-24 mx-auto mb-4 opacity-20" />
+                              <p className="text-xl">Waiting for patient to join...</p>
+                            </div>
                           </div>
                         )}
                       </div>
                       
+                      {/* Doctor's local video */}
+                      <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-white rounded-lg overflow-hidden">
+                        <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      </div>
+                      
                       {/* Call controls */}
-                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 rounded-full px-2 py-2 flex items-center space-x-2">
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                         <Button
                           variant="ghost"
                           size="icon"
                           className={`rounded-full ${isAudioOn ? 'text-white' : 'bg-red-500 text-white'}`}
-                          onClick={toggleAudio}
+                          onClick={() => {
+                            toggleAudio();
+                            setIsAudioOn(!isAudioOn);
+                          }}
                         >
                           {isAudioOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
                         </Button>
@@ -569,7 +553,10 @@ export default function DoctorConsultationPage() {
                           variant="ghost"
                           size="icon"
                           className={`rounded-full ${isVideoOn ? 'text-white' : 'bg-red-500 text-white'}`}
-                          onClick={toggleVideo}
+                          onClick={() => {
+                            toggleVideo();
+                            setIsVideoOn(!isVideoOn);
+                          }}
                         >
                           {isVideoOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
                         </Button>
@@ -594,10 +581,17 @@ export default function DoctorConsultationPage() {
                         </p>
                         <Button 
                           className="bg-blue-600 hover:bg-blue-700"
-                          onClick={() => setIsCallActive(true)}
+                          onClick={startVideoCall}
+                          disabled={isConnecting}
                         >
-                          <Video className="h-4 w-4 mr-2" />
-                          Start Video Call
+                          {isConnecting ? (
+                            <>Connecting...</>
+                          ) : (
+                            <>
+                              <Video className="h-4 w-4 mr-2" />
+                              Start Video Call
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>

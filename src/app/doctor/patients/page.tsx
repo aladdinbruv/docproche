@@ -100,20 +100,26 @@ export default function DoctorPatientsPage() {
         .select('patient_id')
         .eq('doctor_id', profile?.id || user?.id);
 
-      if (appointmentsError) throw appointmentsError;
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+        throw appointmentsError;
+      }
 
       if (appointments && appointments.length > 0) {
         // Get unique patient IDs manually since distinct() is not available
-        const patientIds = [...new Set(appointments.map((apt: { patient_id: string }) => apt.patient_id))];
+        const patientIds = [...new Set(appointments.map((apt) => apt.patient_id))];
 
-        // Fetch patient details
+        // Fetch patient details - make sure to use the users table, not profiles
         const { data: patientsData, error: patientsError } = await supabase
-          .from('profiles')
+          .from('users')  // Changed from 'profiles' to 'users'
           .select('*')
           .in('id', patientIds)
           .eq('role', 'patient');
 
-        if (patientsError) throw patientsError;
+        if (patientsError) {
+          console.error('Error fetching patient profiles:', patientsError);
+          throw patientsError;
+        }
 
         setPatients(patientsData || []);
         setFilteredPatients(patientsData || []);

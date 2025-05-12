@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { LoaderCircle, AlertTriangle, Calendar, Lock, Clock, MapPin, Video, User } from 'lucide-react';
 import { formatDistance, format } from 'date-fns';
 import { Appointment } from '@/types/supabase';
+import { useRouter } from 'next/navigation';
 
 interface AppointmentsListProps {
   userId: string;
@@ -28,6 +29,7 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
   } = useAppointments(userId, userType, includeOptions);
 
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -235,6 +237,21 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
                   </Button>
                 </CardFooter>
               )}
+
+              {appointment.consultation_type === 'video' && 
+                appointment.status === 'confirmed' && (
+                  <CardFooter className="border-t bg-muted/30 flex justify-end gap-2 pt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-blue-600 border-blue-600"
+                      onClick={() => router.push(`/consultation?appointment=${appointment.id}`)}
+                    >
+                      <Video className="h-4 w-4 mr-2" />
+                      Join Video Call
+                    </Button>
+                  </CardFooter>
+                )}
             </Card>
           ))}
         </div>

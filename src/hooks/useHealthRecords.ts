@@ -3,11 +3,20 @@ import { createClientComponentClient } from '@/lib/supabase';
 import { HealthRecord, MedicalHistory, Prescription } from '@/types/supabase';
 import { hasAccessToPatientRecords, logDataAccess } from '@/utils/securityUtils';
 
+type CreateHealthRecordInput = {
+  patient_id: string;
+  appointment_id?: string;
+  record_type: string;
+  title: string;
+  description?: string;
+  file_url?: string;
+};
+
 /**
  * Custom hook for securely accessing a patient's health records
  * Includes access control, audit logging, and error handling
  */
-export function useHealthRecords(patientId: string) {
+export function useHealthRecords(patientId?: string) {
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -18,6 +27,11 @@ export function useHealthRecords(patientId: string) {
   const supabase = createClientComponentClient();
 
   useEffect(() => {
+    if (!patientId) {
+      setLoading(false);
+      return;
+    }
+    
     async function checkAccess() {
       const hasAccess = await hasAccessToPatientRecords(patientId);
       setHasAccess(hasAccess);
@@ -95,6 +109,8 @@ export function useHealthRecords(patientId: string) {
   }, [patientId]);
 
   const refreshData = async () => {
+    if (!patientId) return;
+    
     setLoading(true);
     
     try {
@@ -140,6 +156,48 @@ export function useHealthRecords(patientId: string) {
     }
   };
 
+  // Add health record creation functionality
+  const createHealthRecord = async (recordData: CreateHealthRecordInput) => {
+    try {
+      // Check if the user has access to this patient's records if patientId is provided
+      if (patientId && !hasAccess) {
+        throw new Error('You do not have permission to create health records for this patient.');
+      }
+
+      // Get the current user to set as the doctor_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to create health records.');
+      }
+
+      // Insert the record
+      const { data, error } = await supabase
+        .from('health_records')
+        .insert({
+          ...recordData,
+          doctor_id: user.id,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      // Log the creation for audit purposes
+      await logDataAccess('health_record', recordData.patient_id, 'create');
+      
+      // Refresh the records if we're looking at the same patient
+      if (patientId === recordData.patient_id) {
+        await refreshData();
+      }
+      
+      return data;
+    } catch (err: any) {
+      console.error('Error creating health record:', err);
+      throw new Error(err.message || 'Failed to create health record');
+    }
+  };
+
   return {
     healthRecords,
     medicalHistory,
@@ -147,6 +205,7 @@ export function useHealthRecords(patientId: string) {
     loading,
     error,
     hasAccess,
-    refreshData
+    refreshData,
+    createHealthRecord
   };
 } 

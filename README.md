@@ -16,6 +16,8 @@ DoctoProche is a comprehensive, secure, and user-friendly Next.js application th
 - **🔔 Appointment Reminders**: Get notified about upcoming appointments
 - **📝 Symptom Recording**: Document your symptoms before appointments
 - **📊 Health Statistics**: Visual representation of your health records
+- **⚡ Performance Optimizations**: Multi-level caching for fast page loads and responsive UI
+- **💊 Prescription Management**: Create, update, and track medical prescriptions
 
 ## 🛠️ Tech Stack
 
@@ -25,12 +27,14 @@ DoctoProche is a comprehensive, secure, and user-friendly Next.js application th
 - **Animations**: Framer Motion for smooth transitions and engaging user interactions
 - **Form Handling**: React Hook Form with Zod validation for robust form management
 - **State Management**: React Context API for global state management
+- **Data Fetching**: React Query for efficient data fetching with automatic caching
 
 ### ⚙️ Backend
 - **Supabase Auth**: Secure authentication with JWT tokens and row-level security
 - **Supabase Database**: PostgreSQL database with robust data models and relationships
 - **API Routes**: Next.js API routes for server-side operations and business logic
 - **Middleware**: Custom middleware for route protection and role-based access
+- **Caching**: Multi-level caching strategy with Service Workers and local storage
 
 ### 💸 Payment Processing
 - **Stripe Integration**: Secure payment collection with Stripe Checkout
@@ -48,6 +52,83 @@ Our application uses a carefully designed database schema:
 - **payments**: Detailed payment transaction records with status tracking
 - **availability**: Doctor availability windows for smart scheduling
 - **specialties**: Medical specialties catalog for accurate doctor categorization
+- **prescriptions**: Complete prescription records with medications and instructions
+
+## ⚡ Performance Optimizations
+
+DoctoProche implements a comprehensive caching strategy to ensure optimal performance:
+
+### React Query Caching
+- **Appointments**: Cached for 5 minutes with background revalidation
+- **Prescriptions**: Optimized queries with automatic invalidation on updates
+- **Doctor Listings**: Efficiently cached with pagination support
+
+### Component Optimizations
+- **Memoization**: Heavy components use React.memo to prevent unnecessary re-renders
+- **Code Splitting**: Dynamic imports with Next.js for optimal bundle sizes
+- **Lazy Loading**: Components loaded only when needed for faster initial page load
+
+### Service Worker Cache
+- **Static Assets**: Images, CSS, fonts cached at the network level
+- **API Responses**: Non-sensitive API responses cached with appropriate TTL
+- **Offline Support**: Basic offline capabilities for core functionality
+
+### Local Storage Cache
+- **Reference Data**: Specialties, locations, and other static data
+- **User Preferences**: Settings and preferences stored locally
+- **Recent Searches**: Quick access to recent doctor searches
+
+## 🔄 Implementation Details
+
+### React Query Setup
+```typescript
+// src/lib/queryClient.ts
+import { QueryClient } from '@tanstack/react-query';
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 30 * 60 * 1000, // 30 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
+    },
+  },
+});
+```
+
+### Service Worker Registration
+```typescript
+// In layout.tsx
+useEffect(() => {
+  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      })
+      .catch(error => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+}, []);
+```
+
+### Component Memoization
+```typescript
+// Example of memoized component
+const MemoizedDoctorCard = memo(LazyDoctorCard);
+
+// With useMemo for expensive calculations
+const sortedDoctors = useMemo(() => {
+  return [...filteredDoctors].sort((a, b) => {
+    if (a.rating && b.rating) {
+      return b.rating - a.rating;
+    }
+    return a.full_name.localeCompare(b.full_name);
+  });
+}, [filteredDoctors]);
+```
 
 ## 🚀 Getting Started
 
@@ -97,14 +178,13 @@ Our application uses a carefully designed database schema:
 
 ## 🗺️ Roadmap
 
-
 - [ ] 🎥 Integrated video conferencing for virtual appointments
-
 - [ ] 📈 Advanced analytics dashboard for doctors
 - [ ] 🌐 Multi-language support for international users
-- [ ] 💊 Prescription management system
+- [x] 💊 Prescription management system
 - [ ] 🏆 Loyalty program for returning patients
 - [ ] 🧠 AI-powered doctor recommendations (future)
+- [x] ⚡ Performance optimization and caching system
 
 ## 📄 License
 

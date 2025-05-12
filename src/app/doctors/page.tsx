@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { FaStar, FaMapMarkerAlt, FaUserMd, FaCalendarAlt } from "react-icons/fa";
 import { useDoctors } from "@/hooks/useDoctors";
 
+export const revalidate = 3600; // Revalidate every hour
+
 export default function DoctorsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");

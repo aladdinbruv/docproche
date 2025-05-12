@@ -105,11 +105,12 @@ export function Navbar() {
             // Doctor navigation links
             <>
               <DoctorNavLink href="/dashboard">Dashboard</DoctorNavLink>
+              <DoctorNavLink href="/doctor/analytics">Analytics</DoctorNavLink>
               <DoctorNavLink href="/doctor/appointments">Appointments</DoctorNavLink>
               <DoctorNavLink href="/doctor/patients">Patients</DoctorNavLink>
               <DoctorNavLink href="/doctor/schedule">Schedule</DoctorNavLink>
               <DoctorNavLink href="/doctor/consultations">Consultations</DoctorNavLink>
-              <DoctorNavLink href="/doctor/records">Medical Records</DoctorNavLink>
+             
             </>
           ) : (
             // Patient/regular navigation links
@@ -225,6 +226,13 @@ export function Navbar() {
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
                         Doctor Dashboard
+                      </Link>
+                      <Link
+                        href="/doctor/analytics"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                      >
+                        Analytics
                       </Link>
                       <Link
                         href="/doctor/profile"

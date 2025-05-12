@@ -9,6 +9,8 @@ import { Prescription, Appointment } from "@/types/supabase";
 import { createClientComponentClient } from "@/lib/supabase";
 import { usePayments } from "@/hooks/usePayments";
 import { PaymentSummary } from "@/components";
+import { FileText, Clipboard, DollarSign, Settings } from "lucide-react";
+import { DashboardCard } from "@/components/ui/dashboard-card";
 
 // Define interfaces for types used in the component
 interface Message {
@@ -193,8 +195,8 @@ export default function DashboardPage() {
               <span className="text-3xl font-bold animate-pulse">...</span>
             ) : (
               <>
-                <span className="text-3xl font-bold">{upcomingAppointments.length}</span>
-                <span className="text-muted-foreground">scheduled</span>
+            <span className="text-3xl font-bold">{upcomingAppointments.length}</span>
+            <span className="text-muted-foreground">scheduled</span>
               </>
             )}
           </div>
@@ -246,27 +248,27 @@ export default function DashboardPage() {
         </div>
         
         {profile?.role === 'patient' && (
-          <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+        <div className="p-6 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm">
+          <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium">Prescriptions</h3>
               <div className="bg-blue-100 text-blue-600 p-2 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
+                />
+              </svg>
             </div>
-            <div className="flex items-baseline gap-2">
+          </div>
+          <div className="flex items-baseline gap-2">
               {healthRecordsLoading ? (
                 <span className="text-3xl font-bold animate-pulse">...</span>
               ) : (
@@ -317,14 +319,14 @@ export default function DashboardPage() {
                   <span className="text-muted-foreground">total</span>
                 </>
               )}
-            </div>
-            <Link 
-              href="/dashboard/patients" 
-              className="text-sm text-primary hover:underline mt-4 inline-block"
-            >
-              View all patients →
-            </Link>
           </div>
+          <Link 
+              href="/dashboard/patients" 
+            className="text-sm text-primary hover:underline mt-4 inline-block"
+          >
+              View all patients →
+          </Link>
+        </div>
         )}
       </div>
       
@@ -332,7 +334,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column - Upcoming appointments + Payments for patients */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Upcoming appointments */}
+      {/* Upcoming appointments */}
           <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm overflow-hidden">
             <div className="p-6 border-b border-[var(--border)]">
               <div className="flex justify-between items-center">
@@ -414,17 +416,17 @@ export default function DashboardPage() {
           )}
           
           {/* Recent messages */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">Recent Messages</h2>
-              <Link 
+          <Link 
                 href="/dashboard/messages" 
-                className="text-sm text-primary hover:underline"
-              >
-                View all
-              </Link>
-            </div>
-            
+            className="text-sm text-primary hover:underline"
+          >
+            View all
+          </Link>
+        </div>
+        
             {isMessagesLoading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
@@ -435,33 +437,33 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground">No unread messages</p>
               </div>
             ) : (
-              <div className="space-y-4">
+        <div className="space-y-4">
                 {unreadMessages.slice(0, 3).map((message) => (
                   <div key={message.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="bg-primary/10 text-primary p-2 rounded-full">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                          />
-                        </svg>
-                      </div>
-                      <div>
+                  <div className="bg-primary/10 text-primary p-2 rounded-full">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
                         <h3 className="font-medium">{message.sender?.full_name || 'User'}</h3>
                         <p className="text-xs text-muted-foreground">
                           {new Date(message.created_at).toLocaleString()}
                         </p>
-                      </div>
-                    </div>
+                  </div>
+                </div>
                     <p className="text-sm mb-3 line-clamp-2">{message.content}</p>
                     <Link 
                       href={`/dashboard/messages/${message.id}`}
@@ -473,8 +475,8 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
-          </div>
-          
+                  </div>
+                  
           {/* Health records section for patients */}
           {profile?.role === 'patient' && (
             <div>
@@ -486,8 +488,8 @@ export default function DashboardPage() {
                 >
                   View all records
                 </Link>
-              </div>
-              
+                  </div>
+                  
               {healthRecordsLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
@@ -507,21 +509,21 @@ export default function DashboardPage() {
                     <div key={prescription.id} className="p-4 bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)]">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="bg-primary/10 text-primary p-2 rounded-full">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
                             className="h-5 w-5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
                               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        </div>
+                        />
+                      </svg>
+                  </div>
                         <div>
                           <h3 className="font-medium">{
                             // Display medication information from the medications JSON field
@@ -534,8 +536,8 @@ export default function DashboardPage() {
                           <p className="text-xs text-muted-foreground">
                             Prescribed on {new Date(prescription.issue_date).toLocaleDateString()}
                           </p>
-                        </div>
-                      </div>
+                </div>
+              </div>
                       <p className="text-sm mb-1">
                         <span className="font-medium">Dosage:</span> {
                           typeof prescription.medications === 'object' && prescription.medications !== null
@@ -556,21 +558,21 @@ export default function DashboardPage() {
                             <>No expiration date</>
                           )}
                         </span>
-                        <Link 
+                <Link
                           href={`/dashboard/health-records/prescriptions/${prescription.id}`}
                           className="text-primary hover:underline"
-                        >
+                >
                           View details →
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+                </Link>
+              </div>
+            </div>
+          ))}
                 </div>
               )}
             </div>
           )}
-        </div>
-        
+      </div>
+      
         {/* Right column - Recent messages */}
         <div className="lg:col-span-1 space-y-6">
           {/* Recent messages */}
@@ -579,8 +581,8 @@ export default function DashboardPage() {
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Recent Messages</h2>
                 <Link href="/dashboard/messages" className="text-sm text-primary hover:underline">
-                  View all
-                </Link>
+              View all
+            </Link>
               </div>
             </div>
             
@@ -591,33 +593,64 @@ export default function DashboardPage() {
             ) : unreadMessages.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-muted-foreground">No unread messages</p>
-              </div>
+          </div>
             ) : (
               <div className="divide-y divide-[var(--border)]">
                 {unreadMessages.slice(0, 5).map((message) => (
                   <div key={message.id} className="p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex justify-between items-start">
-                      <div>
+        <div>
                         <p className="font-medium">{message.sender?.full_name || 'User'}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(message.created_at).toLocaleString()}
                         </p>
-                      </div>
+          </div>
                       <div className="text-right">
-                        <Link 
-                          href={`/dashboard/messages/${message.id}`}
-                          className="text-sm text-primary hover:underline"
-                        >
+                  <Link 
+                    href={`/dashboard/messages/${message.id}`} 
+                    className="text-sm text-primary hover:underline"
+                  >
                           Read message →
-                        </Link>
+                  </Link>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                </div>
+              </div>
+            ))}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Doctor-specific cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+        <DashboardCard
+          title="Medical Records"
+          icon={<FileText className="h-6 w-6" />}
+          href="/doctor/medical-records"
+          description="Access and manage patient records"
+        />
+        
+        <DashboardCard
+          title="Prescriptions"
+          icon={<Clipboard className="h-6 w-6" />}
+          href="/doctor/prescriptions"
+          description="Create and manage prescriptions"
+        />
+        
+        <DashboardCard
+          title="Billing"
+          icon={<DollarSign className="h-6 w-6" />}
+          href="/doctor/billing"
+          description="Manage invoices and payments"
+        />
+        
+        <DashboardCard
+          title="Profile Settings"
+          icon={<Settings className="h-6 w-6" />}
+          href="/doctor/profile"
+          description="Update your professional profile"
+        />
       </div>
     </div>
   );

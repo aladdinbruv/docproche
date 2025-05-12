@@ -12,7 +12,7 @@ import {
   FileText,
   User,
   Clock,
-  FileMedical,
+  ClipboardList,
   ArrowUpDown,
   ChevronDown,
   ChevronLeft,
@@ -459,7 +459,7 @@ export default function DoctorConsultationsPage() {
                                   e.stopPropagation();
                                   router.push(`/doctor/health-records?patient=${consultation.patient_id}`);
                                 }}>
-                                  <FileMedical className="h-4 w-4 mr-2" />
+                                  <ClipboardList className="h-4 w-4 mr-2" />
                                   Patient Records
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -598,7 +598,7 @@ export default function DoctorConsultationsPage() {
                           className="w-full"
                           onClick={() => router.push(`/doctor/health-records?patient=${selectedConsultation.patient_id}`)}
                         >
-                          <FileMedical className="h-4 w-4 mr-2" />
+                          <ClipboardList className="h-4 w-4 mr-2" />
                           View Health Records
                         </Button>
                       </div>
