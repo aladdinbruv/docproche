@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerComponentClient } from '@/lib/supabase';
+import { getServerComponentClient } from '@/lib/server-supabase';
 import { getHealthRecord, getPatientHealthRecords, logDataAccess } from '@/utils/securityUtils';
-import { cookies } from 'next/headers';
 
 /**
  * GET /api/health-records?patientId=xyz
@@ -22,12 +21,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Create a Supabase client with the user's session
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = getServerComponentClient();
     
     // Verify the user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -74,12 +73,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerComponentClient({ cookies });
+    const supabase = getServerComponentClient();
     
     // Verify the user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }

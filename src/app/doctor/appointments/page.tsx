@@ -1,10 +1,9 @@
 // src/app/doctor/appointments/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { format, parseISO, isToday, isTomorrow, addDays, isSameDay } from "date-fns";
+import { format, parseISO, isToday, isTomorrow, isSameDay } from "date-fns";
 import {
   Calendar,
   Clock,
@@ -32,13 +31,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
-import { LoadingWithTimeout } from "@/components/LoadingWithTimeout";
+import { LoadingWithTimeout, AuthGuard } from "@/components";
 import { useNetworkStatus } from "@/components/NetworkStatusProvider";
 import { getUserFriendlyErrorMessage } from "@/utils/errorUtils";
 
 export default function DoctorAppointmentsPage() {
-  const router = useRouter();
-  const { user, profile, isLoading: authLoading } = useAuth();
+  // Wrap the entire component with AuthGuard instead of manually checking auth state
+  return (
+    <AuthGuard requiredRole="doctor">
+      <DoctorAppointmentsContent />
+    </AuthGuard>
+  );
+}
+
+function DoctorAppointmentsContent() {
+  const { profile, user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
@@ -61,13 +68,6 @@ export default function DoctorAppointmentsPage() {
     'doctor',
     { includePatient: true }
   );
-
-  useEffect(() => {
-    // Redirect if not logged in or not a doctor
-    if (!authLoading && (!user || profile?.role !== 'doctor')) {
-      router.push('/auth/login?redirectTo=/doctor/appointments');
-    }
-  }, [user, profile, authLoading, router]);
 
   // Generate array of days for the week view
   function generateWeekDays(date: Date): Date[] {
@@ -178,14 +178,14 @@ export default function DoctorAppointmentsPage() {
 
   return (
     <LoadingWithTimeout 
-      isLoading={authLoading || appointmentsLoading}
+      isLoading={appointmentsLoading}
       loadingMessage="Loading your appointments..."
       onRefresh={refreshAppointments}
       timeoutMs={20000}
     >
       <div className="min-h-screen bg-gray-50 pb-12">
         {appointmentsError && (
-          <div className="container mx-auto px-4 py-2">
+          <div className="px-4 py-2">
             <Alert variant="destructive" className="mb-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0 mr-2">
@@ -212,13 +212,13 @@ export default function DoctorAppointmentsPage() {
         )}
         
         <div className="bg-blue-600 text-white py-6">
-          <div className="container mx-auto px-4">
+          <div className="px-4">
             <h1 className="text-2xl font-bold mb-2">Appointments</h1>
             <p className="text-blue-100">Manage your patient appointments</p>
           </div>
         </div>
         
-        <div className="container mx-auto px-4 mt-6">
+        <div className="px-4 mt-6">
           {/* Control Bar */}
           <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

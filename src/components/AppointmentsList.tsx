@@ -1,12 +1,14 @@
+'use client';
+
 import { useAppointments } from '@/hooks/useAppointments';
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { LoaderCircle, AlertTriangle, Calendar, Lock, Clock, MapPin, Video, User } from 'lucide-react';
-import { formatDistance, format } from 'date-fns';
-import { Appointment } from '@/types/supabase';
+import { LoaderCircle, AlertTriangle, Calendar, Lock, MapPin, Video } from 'lucide-react';
+import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { AppointmentChat } from '@/components/messaging/AppointmentChat';
 
 interface AppointmentsListProps {
   userId: string;
@@ -24,7 +26,6 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
     loading,
     error,
     hasAccess,
-    refreshData,
     updateAppointmentStatus
   } = useAppointments(userId, userType, includeOptions);
 
@@ -97,7 +98,7 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
   const formatAppointmentDate = (dateStr: string) => {
     try {
       return format(new Date(dateStr), 'PPPP');
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
@@ -216,6 +217,15 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
                 </div>
               </CardContent>
               
+              {/* Add AppointmentChat component */}
+              <div className="border-t">
+                <AppointmentChat 
+                  appointmentId={appointment.id}
+                  collapsed={true}
+                  className="rounded-none shadow-none border-0"
+                />
+              </div>
+              
               {(['pending', 'confirmed'].includes(appointment.status)) && (
                 <CardFooter className="border-t bg-muted/30 flex justify-end gap-2 pt-3">
                   {userType === 'doctor' && appointment.status === 'confirmed' && (
@@ -252,6 +262,17 @@ export function AppointmentsList({ userId, userType, includeUser = false }: Appo
                     </Button>
                   </CardFooter>
                 )}
+                
+              {/* Add View Details button */}
+              <CardFooter className="border-t bg-muted/30 flex justify-end gap-2 pt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push(`/appointments/${appointment.id}`)}
+                >
+                  View Details
+                </Button>
+              </CardFooter>
             </Card>
           ))}
         </div>

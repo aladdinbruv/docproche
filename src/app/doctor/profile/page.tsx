@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { createClientComponentClient } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, User, MapPin, Phone, Mail, Award } from 'lucide-react';
+import { Save, User, MapPin, Phone, Mail, Award, Camera, AlertCircle } from 'lucide-react';
 
 // Doctor profile interface matching database schema
 interface DoctorProfile {
@@ -16,28 +16,28 @@ interface DoctorProfile {
   id: string;
   full_name: string;
   email: string;
-  phone_number?: string;
-  profile_image?: string;
-  specialty?: string;
-  years_of_experience?: number;
-  education?: string;
-  bio?: string;
-  consultation_fee?: number;
-  available_days?: string[];
-  created_at?: string;
-  updated_at?: string;
-  location?: string;
-  medical_license?: string;
+  phone_number?: string | null;
+  profile_image?: string | null;
+  specialty?: string | null;
+  years_of_experience?: number | null;
+  education?: string | null;
+  bio?: string | null;
+  consultation_fee?: number | null;
+  available_days?: string[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  location?: string | null;
+  medical_license?: string | null;
   
   // From doctor_profiles table if exists
   doctor_profile?: {
-    specialty: string;
-    years_experience: number;
-    location: string;
-    bio?: string;
-    profile_picture?: string;
-    rating?: number;
-  };
+    specialty: string | null;
+    years_experience: number | null;
+    location: string | null;
+    bio?: string | null;
+    profile_picture?: string | null;
+    rating?: number | null;
+  } | null;
 }
 
 export default function DoctorProfilePage() {
@@ -46,6 +46,9 @@ export default function DoctorProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<DoctorProfile>>({});
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Fetch doctor profile
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function DoctorProfilePage() {
         if (error) throw error;
         
         // Merge doctor_profile data if it exists
-        setDoctorProfile(data);
+        setDoctorProfile(data as DoctorProfile);
         setFormData({
           full_name: data.full_name,
           email: data.email,
@@ -83,7 +86,7 @@ export default function DoctorProfilePage() {
           location: data.location || data.doctor_profile?.location || '',
           medical_license: data.medical_license || ''
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching doctor profile:', error);
       } finally {
         setIsLoading(false);
@@ -100,6 +103,166 @@ export default function DoctorProfilePage() {
       ...formData,
       [name]: value
     });
+  };
+  
+  // Handle profile image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+    
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image file is too large. Maximum size is 5MB.');
+      return;
+    }
+    
+    // Validate file type (only images)
+    if (!file.type.match(/^image\/(jpeg|png|gif|webp)$/)) {
+      setUploadError('Invalid file type. Please upload a JPG, PNG, GIF, or WebP image.');
+      return;
+    }
+    
+    setUploadingImage(true);
+    setUploadError(null);
+    const supabase = createClientComponentClient();
+    
+    try {
+      // First try to initialize storage if needed
+      try {
+        const initResponse = await fetch('/api/init');
+        if (!initResponse.ok) {
+          console.warn('Storage initialization warning:', await initResponse.text());
+        }
+      } catch (initError) {
+        console.warn('Storage initialization error:', initError);
+        // Continue anyway, the upload might still work
+      }
+      
+      // Check if the public bucket exists, continue even if check fails
+      try {
+        const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+        
+        if (bucketError) {
+          console.warn('Error checking storage buckets:', bucketError);
+        } else {
+          const publicBucketExists = buckets.some(bucket => bucket.name === 'public');
+          if (!publicBucketExists) {
+            console.warn('Public bucket does not exist. Attempting upload anyway.');
+          } else {
+            console.log('Public bucket exists, proceeding with upload.');
+          }
+        }
+      } catch (checkError) {
+        console.warn('Error checking buckets:', checkError);
+        // Continue anyway, the upload might still work
+      }
+      
+      // Create a unique file name to avoid collisions
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.id}-${Date.now()}.${fileExt}`;
+      const filePath = `profile-images/${fileName}`;
+      
+      console.log(`Uploading file to path: ${filePath}`);
+      
+      // Upload the file to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+        
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+      
+      console.log('Upload successful, getting public URL');
+      
+      // Get the public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('public')
+        .getPublicUrl(filePath);
+        
+      if (!publicUrlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded image');
+      }
+      
+      const publicUrl = publicUrlData.publicUrl;
+      console.log('Got public URL:', publicUrl);
+      
+      // Update the user record with the new profile image URL
+      console.log('Updating user profile with new image URL');
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_image: publicUrl })
+        .eq('id', profile.id);
+        
+      if (updateError) {
+        console.error('User update error:', updateError);
+        throw new Error(`Failed to update user profile: ${updateError.message}`);
+      }
+      
+      // Also update the doctor_profile if it exists
+      if (doctorProfile?.doctor_profile) {
+        console.log('Updating doctor profile with new image URL');
+        const { error: profileUpdateError } = await supabase
+          .from('doctor_profiles')
+          .update({ profile_picture: publicUrl })
+          .eq('user_id', profile.id);
+          
+        if (profileUpdateError) {
+          console.error('Doctor profile update error:', profileUpdateError);
+          throw new Error(`Failed to update doctor profile: ${profileUpdateError.message}`);
+        }
+      }
+      
+      // Update local state
+      setFormData({
+        ...formData,
+        profile_image: publicUrl
+      });
+      
+      // Refetch doctor profile to get updated data
+      console.log('Refreshing doctor profile data');
+      const { data: refreshedData, error: refreshError } = await supabase
+        .from('users')
+        .select(`
+          *,
+          doctor_profile:doctor_profiles(*)
+        `)
+        .eq('id', profile.id)
+        .single();
+        
+      if (refreshError) {
+        console.error('Profile refresh error:', refreshError);
+        throw new Error(`Failed to refresh profile data: ${refreshError.message}`);
+      }
+      
+      setDoctorProfile(refreshedData as DoctorProfile);
+      console.log('Profile image update complete');
+    } catch (error: unknown) {
+      console.error('Error uploading profile image:', error);
+      let errorMessage = 'Failed to upload profile image';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to extract error message from Supabase error object
+        errorMessage = JSON.stringify(error);
+        if (Object.prototype.hasOwnProperty.call(error, 'message')) {
+          errorMessage = (error as Record<string, string>).message;
+        }
+      }
+      
+      setUploadError(errorMessage);
+    } finally {
+      setUploadingImage(false);
+      // Clear file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
   
   // Handle form submission
@@ -232,19 +395,49 @@ export default function DoctorProfilePage() {
             <Card>
               <CardContent className="p-6">
                 <div className="flex flex-col items-center">
-                  <div className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mb-4">
-                    {formData.profile_image ? (
-                      <img 
-                        src={formData.profile_image} 
-                        alt={formData.full_name} 
-                        className="w-full h-full object-cover"
+                  <div className="relative group">
+                    <div className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mb-4">
+                      {formData.profile_image ? (
+                        <img 
+                          src={formData.profile_image} 
+                          alt={formData.full_name} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600">
+                          <User className="h-16 w-16" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Image upload button */}
+                    <label className="absolute bottom-4 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-blue-700 transition-colors">
+                      <Camera className="h-4 w-4" />
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        onChange={handleImageUpload}
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        ref={fileInputRef}
+                        disabled={uploadingImage}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600">
-                        <User className="h-16 w-16" />
-                      </div>
-                    )}
+                    </label>
                   </div>
+                  
+                  {/* Upload status and error messages */}
+                  {uploadingImage && (
+                    <div className="text-sm text-blue-600 mt-2 flex items-center">
+                      <div className="animate-spin h-4 w-4 border-t-2 border-blue-600 border-r-2 border-blue-600 border-b-2 border-transparent rounded-full mr-2"></div>
+                      Uploading image...
+                    </div>
+                  )}
+                  
+                  {uploadError && (
+                    <div className="text-sm text-red-600 mt-2 flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      {uploadError}
+                    </div>
+                  )}
                   
                   <h2 className="text-xl font-bold mb-1">{formData.full_name}</h2>
                   <p className="text-blue-600 font-medium mb-4">{formData.specialty || 'No specialty set'}</p>
@@ -417,19 +610,6 @@ export default function DoctorProfilePage() {
                           onChange={handleInputChange}
                           rows={5}
                         />
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="profile_image">Profile Image URL</Label>
-                        <Input
-                          id="profile_image"
-                          name="profile_image"
-                          value={formData.profile_image || ''}
-                          onChange={handleInputChange}
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Enter a URL to your profile image. In a production app, this would be a file upload.
-                        </p>
                       </div>
                     </div>
                     

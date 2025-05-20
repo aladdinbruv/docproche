@@ -1,5 +1,6 @@
 import React from 'react';
 import { HeartbeatIcon } from './MedicalIcons';
+import { AppointmentChat } from './messaging/AppointmentChat';
 
 interface Appointment {
   id: string;
@@ -84,6 +85,15 @@ export const AppointmentTimeline: React.FC<AppointmentTimelineProps> = ({ appoin
               </div>
             </div>
           </div>
+
+          {appointment && (
+            <div className="mt-6">
+              <AppointmentChat 
+                appointmentId={appointment.id} 
+                collapsed={appointment.status === 'cancelled'} 
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>

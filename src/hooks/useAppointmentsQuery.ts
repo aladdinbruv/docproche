@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClientComponentClient } from '@/lib/supabase';
 import { Appointment, User } from '@/types/supabase';
-import { hasAccessToAppointments, logAppointmentAction } from '@/utils/securityUtils';
+import { hasAccessToAppointments, logAppointmentAction } from '@/utils/clientSecurityUtils';
 
 // Types
 type AppointmentWithDoctor = Appointment & {

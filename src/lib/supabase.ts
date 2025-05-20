@@ -22,12 +22,4 @@ export function createClientComponentClient<T = Database>() {
   return clientComponentClientInstance as ReturnType<typeof createSupabaseClientComponent<T>>;
 }
 
-// For server components
-export const createServerComponentClient = () => {
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-};
-
-export type { Database }; 
+export type { Database };

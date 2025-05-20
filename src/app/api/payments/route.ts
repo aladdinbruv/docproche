@@ -36,6 +36,22 @@ export async function POST(req: NextRequest) {
     
     const appointment = appointmentData[0];
     
+    // Check if appointment already has a successful payment
+    const { data: existingPayments, error: paymentsError } = await supabaseAdmin
+      .from("payments")
+      .select("id, status")
+      .eq("appointment_id", appointmentId)
+      .eq("status", "successful");
+      
+    if (paymentsError) throw paymentsError;
+    
+    if (existingPayments && existingPayments.length > 0) {
+      return NextResponse.json({
+        error: "This appointment has already been paid for",
+        paymentId: existingPayments[0].id
+      }, { status: 400 });
+    }
+    
     // Fetch doctor details separately
     const { data: doctorData, error: doctorError } = await supabaseAdmin
       .from("users")
@@ -74,21 +90,42 @@ export async function POST(req: NextRequest) {
       },
     });
     
-    // Create a pending payment record in the database using admin client to bypass RLS
-    const payment = {
-      id: uuidv4(),
-      appointment_id: appointmentId,
-      amount,
-      transaction_id: session.id,
-      status: "pending",
-      payment_date: new Date().toISOString(),
-    };
-    
-    const { error: paymentError } = await supabaseAdmin
+    // Check for existing pending payment
+    const { data: existingPendingPayments } = await supabaseAdmin
       .from("payments")
-      .insert(payment);
-    
-    if (paymentError) throw paymentError;
+      .select("id")
+      .eq("appointment_id", appointmentId)
+      .eq("status", "pending");
+      
+    if (existingPendingPayments && existingPendingPayments.length > 0) {
+      // Update existing pending payment
+      const { error: updateError } = await supabaseAdmin
+        .from("payments")
+        .update({
+          amount,
+          transaction_id: session.id,
+          payment_date: new Date().toISOString(),
+        })
+        .eq("id", existingPendingPayments[0].id);
+        
+      if (updateError) throw updateError;
+    } else {
+      // Create a new pending payment record
+      const payment = {
+        id: uuidv4(),
+        appointment_id: appointmentId,
+        amount,
+        transaction_id: session.id,
+        status: "pending",
+        payment_date: new Date().toISOString(),
+      };
+      
+      const { error: paymentError } = await supabaseAdmin
+        .from("payments")
+        .insert(payment);
+      
+      if (paymentError) throw paymentError;
+    }
     
     return NextResponse.json({ 
       url: session.url,
@@ -98,6 +135,48 @@ export async function POST(req: NextRequest) {
     console.error("Payment creation error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to create payment session" },
+      { status: 500 }
+    );
+  }
+}
+
+// API endpoint to check the status of a payment
+export async function GET(req: NextRequest) {
+  try {
+    const url = new URL(req.url);
+    const sessionId = url.searchParams.get("session_id");
+    
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Session ID is required" },
+        { status: 400 }
+      );
+    }
+    
+    const supabaseAdmin = createAdminClient();
+    
+    // Get the payment details
+    const { data: paymentData, error: paymentError } = await supabaseAdmin
+      .from("payments")
+      .select("id, status, appointment_id")
+      .eq("transaction_id", sessionId);
+      
+    if (paymentError) throw paymentError;
+    
+    if (!paymentData || paymentData.length === 0) {
+      return NextResponse.json(
+        { error: "Payment not found" },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json({
+      payment: paymentData[0]
+    });
+  } catch (error: any) {
+    console.error("Error checking payment status:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to check payment status" },
       { status: 500 }
     );
   }

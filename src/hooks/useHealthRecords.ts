@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@/lib/supabase';
 import { HealthRecord, MedicalHistory, Prescription } from '@/types/supabase';
-import { hasAccessToPatientRecords, logDataAccess } from '@/utils/securityUtils';
+import { hasAccessToPatientRecords, logDataAccess } from '@/utils/clientSecurityUtils';
 
 type CreateHealthRecordInput = {
   patient_id: string;
@@ -51,55 +51,100 @@ export function useHealthRecords(patientId?: string) {
           return;
         }
 
-        // Use the secure RPC function for health records
-        const { data: records, error: recordsError } = await supabase
-          .rpc('get_patient_health_records', { patient_id: patientId });
+        // Try using the secure RPC function with fallback to direct query
+        let records: HealthRecord[] = [];
 
-        if (recordsError) {
-          console.error('Error fetching health records:', recordsError);
-          setError('Failed to load health records.');
-          setLoading(false);
-          return;
+        // First attempt: Use the safe wrapper function which handles errors internally
+        const { data: safeRecords, error: safeError } = await supabase
+          .rpc('get_patient_health_records_safe', { p_patient_id: patientId });
+          
+        if (!safeError) {
+          // Safe function worked
+          records = safeRecords || [];
+        } else {
+          console.warn('Safe RPC function failed, trying standard RPC:', safeError);
+          
+          // Second attempt: Try the regular RPC function
+          const { data: rpcRecords, error: rpcError } = await supabase
+            .rpc('get_patient_health_records', { patient_id: patientId });
+            
+          if (rpcError) {
+            console.warn('RPC function failed, falling back to direct query:', rpcError);
+            
+            // Final fallback: Direct query
+            const { data: directRecords, error: directError } = await supabase
+              .from('health_records')
+              .select('*')
+              .eq('patient_id', patientId)
+              .order('created_at', { ascending: false });
+            
+            if (directError) {
+              console.error('All health records fetch methods failed:', directError);
+              throw directError;
+            }
+            
+            records = directRecords || [];
+          } else {
+            records = rpcRecords || [];
+          }
         }
 
-        setHealthRecords(records || []);
+        setHealthRecords(records);
         
         // Log the access for audit purposes
         if (records && records.length > 0) {
           await logDataAccess('health_record', patientId, 'view');
         }
 
-        // Fetch medical history
-        const { data: history, error: historyError } = await supabase
-          .from('medical_history')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('diagnosed_date', { ascending: false });
-
-        if (historyError) {
-          console.error('Error fetching medical history:', historyError);
+        // Fetch medical history - try RPC first, then direct
+        try {
+          const { data: historyData, error: historyRpcError } = await supabase
+            .rpc('get_patient_medical_history', { patient_id: patientId });
+            
+          if (historyRpcError) {
+            // Fallback to direct query
+            const { data: historyDirect, error: historyDirectError } = await supabase
+              .from('medical_history')
+              .select('*')
+              .eq('patient_id', patientId)
+              .order('diagnosed_date', { ascending: false });
+              
+            if (historyDirectError) throw historyDirectError;
+            setMedicalHistory(historyDirect || []);
+          } else {
+            setMedicalHistory(historyData || []);
+          }
+        } catch (histErr) {
+          console.error('Error fetching medical history:', histErr);
           // Continue with partial data
-        } else {
-          setMedicalHistory(history || []);
         }
 
-        // Fetch prescriptions
-        const { data: scripts, error: scriptsError } = await supabase
-          .from('prescriptions')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('issue_date', { ascending: false });
-
-        if (scriptsError) {
-          console.error('Error fetching prescriptions:', scriptsError);
+        // Fetch prescriptions - try RPC first, then direct
+        try {
+          const { data: prescData, error: prescRpcError } = await supabase
+            .rpc('get_patient_prescriptions', { patient_id: patientId });
+            
+          if (prescRpcError) {
+            // Fallback to direct query
+            const { data: prescDirect, error: prescDirectError } = await supabase
+              .from('prescriptions')
+              .select('*')
+              .eq('patient_id', patientId)
+              .order('issue_date', { ascending: false });
+              
+            if (prescDirectError) throw prescDirectError;
+            setPrescriptions(prescDirect || []);
+          } else {
+            setPrescriptions(prescData || []);
+          }
+        } catch (prescErr) {
+          console.error('Error fetching prescriptions:', prescErr);
           // Continue with partial data
-        } else {
-          setPrescriptions(scripts || []);
         }
 
       } catch (err) {
         console.error('Error in useHealthRecords:', err);
-        setError('An unexpected error occurred.');
+        setError('An unexpected error occurred while fetching health data.');
       } finally {
         setLoading(false);
       }
@@ -112,6 +157,7 @@ export function useHealthRecords(patientId?: string) {
     if (!patientId) return;
     
     setLoading(true);
+    setError(null);
     
     try {
       // Only refetch if user has access
@@ -120,12 +166,45 @@ export function useHealthRecords(patientId?: string) {
         return;
       }
       
-      // Use the secure RPC function for health records
-      const { data: records, error: recordsError } = await supabase
-        .rpc('get_patient_health_records', { patient_id: patientId });
+      // Try using the secure RPC function with fallback to direct query
+      let records: HealthRecord[] = [];
 
-      if (recordsError) throw recordsError;
-      setHealthRecords(records || []);
+      // First attempt: Use the safe wrapper function which handles errors internally
+      const { data: safeRecords, error: safeError } = await supabase
+        .rpc('get_patient_health_records_safe', { p_patient_id: patientId });
+        
+      if (!safeError) {
+        // Safe function worked
+        records = safeRecords || [];
+      } else {
+        console.warn('Safe RPC function failed on refresh, trying standard RPC:', safeError);
+        
+        // Second attempt: Try the regular RPC function
+        const { data: rpcRecords, error: rpcError } = await supabase
+          .rpc('get_patient_health_records', { patient_id: patientId });
+          
+        if (rpcError) {
+          console.warn('RPC function failed on refresh, falling back to direct query:', rpcError);
+          
+          // Final fallback: Direct query
+          const { data: directRecords, error: directError } = await supabase
+            .from('health_records')
+            .select('*')
+            .eq('patient_id', patientId)
+            .order('created_at', { ascending: false });
+          
+          if (directError) {
+            console.error('All health records fetch methods failed on refresh:', directError);
+            throw directError;
+          }
+          
+          records = directRecords || [];
+        } else {
+          records = rpcRecords || [];
+        }
+      }
+
+      setHealthRecords(records);
 
       // Fetch medical history
       const { data: history, error: historyError } = await supabase

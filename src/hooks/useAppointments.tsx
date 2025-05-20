@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@/lib/supabase';
 import { Appointment, User } from '@/types/supabase';
-import { hasAccessToAppointments, logAppointmentAction } from '@/utils/securityUtils';
+import { hasAccessToAppointments, logAppointmentAction } from '@/utils/clientSecurityUtils';
 
 // Remove the direct supabaseAdmin client creation from client-side code
 // The service role key is not available in the browser

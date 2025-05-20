@@ -497,7 +497,7 @@ export default function DoctorConsultationPage() {
                         <Button 
                           variant="ghost" 
                           className="w-full text-blue-600"
-                          onClick={() => router.push(`/doctor/health-records?patient=${appointment.patient_id}`)}
+                          onClick={() => router.push(`/doctor/medical-records?patient=${appointment.patient_id}`)}
                         >
                           View All Records
                         </Button>

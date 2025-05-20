@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { FaCreditCard, FaPaypal, FaApplePay, FaRegMoneyBillAlt } from 'react-icons/fa';
 import { SiGooglepay } from 'react-icons/si';

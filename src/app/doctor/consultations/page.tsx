@@ -240,13 +240,13 @@ export default function DoctorConsultationsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-blue-600 text-white py-6">
-        <div className="container mx-auto px-4">
+        <div className="px-4">
           <h1 className="text-2xl font-bold mb-2">Consultations</h1>
           <p className="text-blue-100">View and manage your past patient consultations</p>
         </div>
       </div>
       
-      <div className="container mx-auto px-4 mt-6">
+      <div className="px-4 mt-6">
         {/* Filters and Search */}
         <Card className="mb-6">
           <CardContent className="py-4">
@@ -457,7 +457,7 @@ export default function DoctorConsultationsPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/doctor/health-records?patient=${consultation.patient_id}`);
+                                  router.push(`/doctor/medical-records?patient=${consultation.patient_id}`);
                                 }}>
                                   <ClipboardList className="h-4 w-4 mr-2" />
                                   Patient Records
@@ -596,7 +596,7 @@ export default function DoctorConsultationsPage() {
                       <div className="mt-4 pt-4 border-t">
                         <Button 
                           className="w-full"
-                          onClick={() => router.push(`/doctor/health-records?patient=${selectedConsultation.patient_id}`)}
+                          onClick={() => router.push(`/doctor/medical-records?patient=${selectedConsultation.patient_id}`)}
                         >
                           <ClipboardList className="h-4 w-4 mr-2" />
                           View Health Records

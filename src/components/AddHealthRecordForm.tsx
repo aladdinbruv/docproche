@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,9 +25,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { LoaderCircle, AlertTriangle, CheckCircle } from 'lucide-react';
-import { encryptPHI, logDataAccess } from '@/utils/securityUtils';
+import { LoaderCircle, AlertTriangle, CheckCircle, FilePlus, Loader2 } from 'lucide-react';
+import { encryptPHI, logDataAccess } from '@/utils/clientSecurityUtils';
 import { createClientComponentClient } from '@/lib/supabase';
+import { useHealthRecords } from '@/hooks/useHealthRecords';
+import { FileUploadSection } from './FileUploadSection';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 // Form validation schema
 const formSchema = z.object({
@@ -48,6 +54,19 @@ interface AddHealthRecordFormProps {
   onSuccess?: (recordId: string) => void;
 }
 
+const recordTypes = [
+  'Clinical Notes',
+  'Lab Results',
+  'Imaging Report',
+  'Consultation Summary',
+  'Treatment Plan',
+  'Surgery Report',
+  'Medication Record',
+  'Vaccination Record',
+  'Allergy Report',
+  'Other'
+];
+
 export function AddHealthRecordForm({
   patientId,
   doctorId,
@@ -57,8 +76,12 @@ export function AddHealthRecordForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [customRecordType, setCustomRecordType] = useState(false);
   
   const supabase = createClientComponentClient();
+  const { createHealthRecord } = useHealthRecords();
 
   // Define form with default values
   const form = useForm<FormValues>({
@@ -67,13 +90,21 @@ export function AddHealthRecordForm({
       patient_id: patientId,
       doctor_id: doctorId,
       appointment_id: appointmentId,
-      record_type: '',
+      record_type: 'Clinical Notes',
       title: '',
       description: '',
       is_confidential: true,
       file_url: ''
     },
   });
+
+  const watchRecordType = form.watch('record_type');
+
+  // Handle file upload completion
+  const handleFileUploaded = (url: string, name: string) => {
+    setFileUrl(url);
+    setFileName(name);
+  };
 
   // Handle form submission
   async function onSubmit(values: FormValues) {
@@ -92,36 +123,48 @@ export function AddHealthRecordForm({
         }
       }
 
-      // Insert the record
-      const { data, error } = await supabase
-        .from('health_records')
-        .insert(values)
-        .select()
-        .single();
+      const healthRecordData = {
+        patient_id: patientId,
+        doctor_id: doctorId,
+        appointment_id: appointmentId,
+        record_type: values.record_type.trim(),
+        title: values.title.trim(),
+        description: values.description?.trim(),
+        file_url: fileUrl || undefined,
+        is_confidential: values.is_confidential
+      };
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
+      const record = await createHealthRecord(healthRecordData);
+      
       // Log the creation for audit purposes
-      if (data) {
-        await logDataAccess('health_record', data.id, 'create');
+      if (record) {
+        await logDataAccess('health_record', record.id, 'create');
       }
 
       setSuccess(true);
       form.reset(); // Reset form after successful submission
+      setFileUrl(null);
+      setFileName(null);
       
       // Call the success callback if provided
-      if (onSuccess && data) {
-        onSuccess(data.id);
+      if (onSuccess && record) {
+        onSuccess(record.id);
       }
-    } catch (err) {
-      console.error('Error adding health record:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add health record');
+    } catch (err: any) {
+      console.error('Error creating health record:', err);
+      setError(err.message || 'Failed to create health record. Please try again.');
     } finally {
       setLoading(false);
     }
   }
+
+  // Toggle between predefined and custom record types
+  const toggleCustomRecordType = () => {
+    setCustomRecordType(!customRecordType);
+    if (!customRecordType) {
+      form.setValue('record_type', 'Clinical Notes'); // Set default when switching back
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -156,28 +199,42 @@ export function AddHealthRecordForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Record Type*</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={loading}
-                >
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="custom-type" className="text-sm">Custom Type</Label>
+                    <Switch 
+                      id="custom-type" 
+                      checked={customRecordType} 
+                      onCheckedChange={toggleCustomRecordType} 
+                    />
+                  </div>
+                </div>
+                {!customRecordType ? (
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={loading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select record type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {recordTypes.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select record type" />
-                    </SelectTrigger>
+                    <Input
+                      placeholder="Enter custom record type"
+                      {...field}
+                      disabled={loading}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Lab Result">Lab Result</SelectItem>
-                    <SelectItem value="Diagnostic Image">Diagnostic Image</SelectItem>
-                    <SelectItem value="Clinical Note">Clinical Note</SelectItem>
-                    <SelectItem value="Vaccination">Vaccination</SelectItem>
-                    <SelectItem value="Procedure">Procedure</SelectItem>
-                    <SelectItem value="Surgery">Surgery</SelectItem>
-                    <SelectItem value="Discharge Summary">Discharge Summary</SelectItem>
-                    <SelectItem value="Referral">Referral</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -230,10 +287,9 @@ export function AddHealthRecordForm({
               <FormItem>
                 <FormLabel>File URL</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Enter URL to related file (optional)"
-                    {...field}
-                    disabled={loading}
+                  <FileUploadSection
+                    patientId={patientId}
+                    onFileUploaded={handleFileUploaded}
                   />
                 </FormControl>
                 <FormDescription>
@@ -243,6 +299,26 @@ export function AddHealthRecordForm({
               </FormItem>
             )}
           />
+
+          {fileUrl && (
+            <div className="p-3 bg-blue-50 rounded-md flex items-center justify-between">
+              <div className="flex items-center">
+                <FilePlus className="h-5 w-5 text-blue-500 mr-2" />
+                <span className="text-sm">{fileName}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFileUrl(null);
+                  setFileName(null);
+                }}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
 
           <FormField
             control={form.control}
@@ -270,7 +346,7 @@ export function AddHealthRecordForm({
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <>
-                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
               </>
             ) : (

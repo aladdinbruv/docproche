@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, FileText, Filter, Download, Eye, AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { LoadingWithTimeout } from '@/components/LoadingWithTimeout';
-import { enhancedFetch } from '@/utils/fetchUtils';
 import { isNetworkError, getUserFriendlyErrorMessage } from '@/utils/errorUtils';
 import { useSearchParams } from 'next/navigation';
 import { useNetworkStatus } from '@/components/NetworkStatusProvider';
+import type { PostgrestSingleResponse, SupabaseClient } from '@supabase/supabase-js';
+import { Database } from '@/types/database';
 
 // Define interface for health record to match database schema
 interface HealthRecord {
@@ -41,6 +42,11 @@ interface HealthRecord {
   };
 }
 
+// Extend the SupabaseClient type to include our custom RPC function
+type SupabaseClientWithCustomRPC = SupabaseClient<Database> & {
+  rpc(fn: 'get_doctor_health_records', params: { doctor_id_param: string }): ReturnType<SupabaseClient['rpc']>;
+};
+
 export default function DoctorMedicalRecordsPage() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
@@ -58,12 +64,15 @@ export default function DoctorMedicalRecordsPage() {
     
     setIsLoading(true);
     setError(null);
-    const supabase = createClientComponentClient();
+    const supabase = createClientComponentClient() as SupabaseClientWithCustomRPC;
     
     try {
-      // Use enhanced fetch to add timeout and retry logic
-      const { data, error } = await enhancedFetch<HealthRecord[]>(
-        () => supabase
+      // Use the dedicated RPC function for doctor health records
+      let healthRecordsQuery;
+      
+      if (patientFilter) {
+        // If a patient filter is specified, use the standard query with filter
+        healthRecordsQuery = supabase
           .from('health_records')
           .select(`
             *,
@@ -71,33 +80,42 @@ export default function DoctorMedicalRecordsPage() {
             appointment:appointment_id(date, time_slot, consultation_type)
           `)
           .eq('doctor_id', profile.id)
-          .eq('patient_id', patientFilter || 'not.is.null')
-          .order('created_at', { ascending: false }),
-        {
-          timeout: 15000, // 15 second timeout
-          retries: 2,
-          onError: (err) => {
-            console.error('Error fetching health records:', err);
-            // Use our utility to get a user-friendly error message
-            const friendlyMessage = getUserFriendlyErrorMessage(err);
-            setError(friendlyMessage);
-          },
-          onRetry: (attempt) => console.log(`Retrying fetch, attempt ${attempt}`)
-        }
-      );
+          .eq('patient_id', patientFilter)
+          .order('created_at', { ascending: false });
+      } else {
+        // Otherwise use the RPC function
+        healthRecordsQuery = supabase
+          .rpc('get_doctor_health_records', { doctor_id_param: profile.id })
+          .select(`
+            *,
+            patient:patient_id(id, full_name, email),
+            appointment:appointment_id(date, time_slot, consultation_type)
+          `);
+      }
       
-      if (error) {
-        if (isNetworkError(error)) {
+      // Execute query with timeout
+      const fetchPromise = healthRecordsQuery;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), 15000);
+      });
+      
+      const result = await Promise.race([fetchPromise, timeoutPromise]) as PostgrestSingleResponse<HealthRecord[]>;
+      
+      if (result.error) {
+        console.error('Error fetching health records:', result.error);
+        if (isNetworkError(result.error)) {
           setError('Network error: Cannot connect to the server. Please check your internet connection.');
         } else {
-          setError('Failed to load medical records. Please try again.');
+          setError(`Failed to load medical records: ${result.error.message}`);
         }
       } else {
-        setHealthRecords(data || [] as HealthRecord[]);
+        setHealthRecords(result.data || []);
       }
-    } catch (error: any) {
-      setError(getUserFriendlyErrorMessage(error));
+      
+    } catch (error) {
       console.error('Exception in fetchHealthRecords:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      setError(getUserFriendlyErrorMessage(errorMessage));
     } finally {
       setIsLoading(false);
     }
@@ -234,7 +252,7 @@ export default function DoctorMedicalRecordsPage() {
                   {error ? (
                     <div>
                       <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-                      <h3 className="text-lg font-medium text-gray-800 mb-2">Couldn't load records</h3>
+                      <h3 className="text-lg font-medium text-gray-800 mb-2">Couldn&apos;t load records</h3>
                       <p className="text-gray-500 max-w-md mx-auto mb-4">
                         {error}
                       </p>

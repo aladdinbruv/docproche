@@ -209,7 +209,7 @@ export default function DoctorPatientsPage() {
 
   // Create a new health record for patient
   const handleCreateHealthRecord = (patientId: string) => {
-    router.push(`/doctor/health-records/new?patient=${patientId}`);
+    router.push(`/doctor/medical-records/new?patient=${patientId}`);
   };
 
   if (authLoading || isLoading) {
@@ -227,13 +227,13 @@ export default function DoctorPatientsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-blue-600 text-white py-6">
-        <div className="container mx-auto px-4">
-          <h1 className="text-2xl font-bold mb-2">My Patients</h1>
-          <p className="text-blue-100">Manage and view your patient list</p>
+        <div className="px-4">
+          <h1 className="text-2xl font-bold mb-2">Patients</h1>
+          <p className="text-blue-100">Manage your patient information and records</p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 mt-6">
+      <div className="px-4 mt-6">
         {/* Patient View Controls */}
         <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -671,7 +671,7 @@ export default function DoctorPatientsPage() {
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    onClick={() => router.push(`/doctor/health-records/${record.id}`)}
+                                    onClick={() => router.push(`/doctor/medical-records/${record.id}`)}
                                     className="text-blue-600"
                                   >
                                     View Record

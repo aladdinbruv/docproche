@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 export default function LoginPage() {
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get('role') === 'doctor' ? 'doctor' : 'patient';
   const message = searchParams.get('message');
+  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
   const captchaRef = useRef<HCaptcha>(null);
   
   const [formData, setFormData] = useState({
@@ -21,6 +23,14 @@ export default function LoginPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Handle automatic redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      console.log('User already logged in, redirecting to:', redirectTo);
+      router.push(redirectTo);
+    }
+  }, [user, redirectTo, router]);
 
   // Handle success message from URL parameter
   useEffect(() => {
@@ -62,7 +72,10 @@ export default function LoginPage() {
 
     try {
       console.log("Attempting to login with:", formData.email);
-      await signIn(formData.email, formData.password, formData.captchaToken);
+      await signIn(formData.email, formData.password, formData.captchaToken, redirectTo);
+      
+      // The signIn function now handles the redirection
+      // No need to redirect here as it's already handled
     } catch (err) {
       console.error("Login error:", err);
       setError(err instanceof Error ? err.message : 'Invalid email or password');
@@ -78,18 +91,28 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Welcome Back</h1>
           <p className="text-muted-foreground mt-2">Log in to access your account</p>
+          {redirectTo && redirectTo !== '/dashboard' && (
+            <p className="text-sm text-muted-foreground mt-1">
+              You'll be redirected to {redirectTo.split('?')[0]} after login
+            </p>
+          )}
         </div>
         
         <div className="bg-[var(--card)] text-[var(--card-foreground)] rounded-[var(--radius)] border border-[var(--border)] shadow-sm p-6 space-y-6">
           <div className="flex gap-2 mb-4">
             <Link 
-              href="/auth/login" 
+              href={`/auth/login?${new URLSearchParams({
+                ...(redirectTo ? { redirectTo } : {})
+              })}`}
               className={`flex-1 py-2 border-b-2 text-center font-medium ${role === 'patient' ? 'border-primary' : 'border-border hover:border-primary transition-colors'}`}
             >
               Patient
             </Link>
             <Link 
-              href="/auth/login?role=doctor" 
+              href={`/auth/login?${new URLSearchParams({
+                role: 'doctor',
+                ...(redirectTo ? { redirectTo } : {})
+              })}`}
               className={`flex-1 py-2 border-b-2 text-center font-medium ${role === 'doctor' ? 'border-primary' : 'border-border hover:border-primary transition-colors'}`}
             >
               Doctor
@@ -181,7 +204,13 @@ export default function LoginPage() {
           <div className="text-center pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{" "}
-              <Link href="/auth/register" className="text-primary hover:underline">
+              <Link 
+                href={`/auth/register?${new URLSearchParams({
+                  ...(redirectTo ? { redirectTo } : {}),
+                  ...(role === 'doctor' ? { role: 'doctor' } : {})
+                })}`} 
+                className="text-primary hover:underline"
+              >
                 Sign up
               </Link>
             </p>

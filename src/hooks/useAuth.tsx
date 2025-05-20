@@ -11,9 +11,10 @@ type AuthContextType = {
   session: Session | null;
   profile: User | null;
   isLoading: boolean;
+  authStateReady: boolean;
   setIsLoading: (loading: boolean) => void;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
-  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string, redirectTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authStateReady, setAuthStateReady] = useState(false);
   const router = useRouter();
   
   // Create the Supabase client once to avoid multiple instances
@@ -35,15 +37,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Fetching profile for user ID:', userId);
       
-      // First check if profile exists by user ID
-      const { data: existingProfiles, error: checkError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId);
+      let existingProfiles: User[] = [];
       
-      if (checkError) {
-        console.error('Error checking user profile by ID:', checkError);
-        return null;
+      // Try to use the secure function that respects RLS
+      const { data: secureProfile, error: secureError } = await supabase
+        .rpc('get_user_profile_secure', { user_id: userId })
+        .maybeSingle();
+        
+      if (secureError) {
+        console.log('Secure profile fetch failed, falling back to direct query:', secureError);
+        
+        // Fall back to direct query if RPC fails
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('Error checking user profile by ID:', checkError);
+          return null;
+        }
+        
+        // Convert maybeSingle response to expected format for rest of the function
+        existingProfiles = existingProfile ? [existingProfile] : [];
+      } else {
+        // Use the secure profile result
+        existingProfiles = secureProfile ? [secureProfile] : [];
       }
       
       // If profile doesn't exist, create a basic one
@@ -63,14 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Check if a profile with this email already exists
         if (userEmail) {
-          const { data: emailProfiles, error: emailCheckError } = await supabase
+          const { data: emailProfile, error: emailCheckError } = await supabase
             .from('users')
             .select('*')
-            .eq('email', userEmail);
+            .eq('email', userEmail)
+            .maybeSingle();
             
           if (emailCheckError) {
             console.error('Error checking for existing email:', emailCheckError);
-          } else if (emailProfiles && emailProfiles.length > 0) {
+          } else if (emailProfile) {
+            // Convert single result to array format for backwards compatibility
+            const emailProfiles = [emailProfile];
             console.log('Found existing profile with same email. Updating ID reference.');
             
             // Update the existing profile with the new user ID
@@ -112,11 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (insertError.code === '23505') {
               console.log('Duplicate constraint error. Fetching existing profile by email instead.');
               
-              // More robust fetch that doesn't use .single()
-              const { data: existingEmailProfiles, error: existingError } = await supabase
+              // More robust fetch using maybeSingle
+              const { data: existingEmailProfile, error: existingError } = await supabase
                 .from('users')
                 .select('*')
-                .eq('email', userEmail);
+                .eq('email', userEmail)
+                .maybeSingle();
                 
               if (existingError) {
                 console.error('Error fetching existing profiles by email:', existingError);
@@ -142,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return fallbackProfile as User;
               }
               
-              if (!existingEmailProfiles || existingEmailProfiles.length === 0) {
+              if (!existingEmailProfile) {
                 console.log('No profiles found with email. This is unexpected. Creating with modified email.');
                 
                 // Create with modified email to avoid conflicts
@@ -183,8 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return altProfile as User;
               }
               
-              console.log(`Found ${existingEmailProfiles.length} profiles with email ${userEmail}`);
-              return existingEmailProfiles[0] as User;
+              console.log(`Found existing profile with email ${userEmail}`);
+              return existingEmailProfile as User;
             } else {
               console.error('Error creating user profile:', insertError);
               return null;
@@ -208,54 +232,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
-    if (user?.id) {
-      const userProfile = await fetchProfile(user.id);
-      if (userProfile) {
-        setProfile(userProfile);
+    setIsLoading(true);
+    try {
+      if (user?.id) {
+        const userProfile = await fetchProfile(user.id);
+        if (userProfile) {
+          setProfile(userProfile);
+        }
       }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const fetchSession = async () => {
+    let isMounted = true;
+    
+    const initializeAuth = async () => {
       try {
+        setIsLoading(true);
+        console.log('Initializing auth state...');
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
-        setSession(session);
-        
         if (session?.user) {
+          console.log('User is authenticated, fetching profile...');
+          setSession(session);
           setUser(session.user);
           
-          // Fetch the user profile data
           const userProfile = await fetchProfile(session.user.id);
-          setProfile(userProfile);
+          
+          if (isMounted) {
+            setProfile(userProfile);
+            
+            setIsLoading(false);
+            
+            setAuthStateReady(true);
+          }
+        } else {
+          console.log('No active session found');
+          if (isMounted) {
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            setIsLoading(false);
+            setAuthStateReady(true);
+          }
         }
       } catch (error) {
-        console.error('Error fetching session:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('Error initializing auth:', error);
+        if (isMounted) {
+          setIsLoading(false);
+          setAuthStateReady(true);
+        }
       }
     };
 
-    fetchSession();
+    initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth state changed:', event);
       
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
+      setIsLoading(true);
+      
+      if (newSession?.user) {
+        setSession(newSession);
+        setUser(newSession.user);
+        
+        const userProfile = await fetchProfile(newSession.user.id);
+        if (isMounted) {
+          setProfile(userProfile);
+        }
       } else {
+        setSession(null);
+        setUser(null);
         setProfile(null);
       }
       
-      setIsLoading(false);
-      router.refresh();
+      if (isMounted) {
+        setIsLoading(false);
+        router.refresh();
+      }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, [router, supabase.auth]);
@@ -329,12 +393,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string, captchaToken?: string) => {
+  const signIn = async (email: string, password: string, captchaToken?: string, redirectTo?: string) => {
     try {
       setIsLoading(true);
       console.log('Sign in attempt:', email);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
         options: {
@@ -344,8 +408,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
       
+      // Set session and user immediately
+      setSession(data.session);
+      setUser(data.user);
+      
+      // Fetch profile before redirecting
+      if (data.user) {
+        const userProfile = await fetchProfile(data.user.id);
+        setProfile(userProfile);
+      }
+      
       console.log('Sign in successful, redirecting...');
-      router.push('/dashboard');
+      router.push(redirectTo || '/dashboard');
       router.refresh();
     } catch (error: any) {
       console.error('Error signing in:', error.message);
@@ -357,12 +431,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
       setProfile(null);
+      setUser(null);
+      setSession(null);
       router.push('/');
     } catch (error) {
       console.error('Error during sign out:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -371,6 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     profile,
     isLoading,
+    authStateReady,
     setIsLoading,
     signUp,
     signIn,

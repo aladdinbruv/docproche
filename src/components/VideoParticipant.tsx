@@ -1,3 +1,5 @@
+'use client';
+
 // src/components/VideoParticipant.tsx
 import { useEffect, useRef, useState } from 'react';
 import { RemoteParticipant, RemoteTrackPublication, RemoteTrack } from 'twilio-video';

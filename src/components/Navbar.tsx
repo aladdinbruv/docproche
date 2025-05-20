@@ -5,13 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
+import { useMessages } from '@/hooks/useMessages';
+import { MessageSquare } from 'lucide-react';
 
 interface NavLinkProps {
   href: string;
   children: React.ReactNode;
+  icon?: React.ReactNode;
 }
 
-const NavLink = ({ href, children }: NavLinkProps) => {
+const NavLink = ({ href, children, icon }: NavLinkProps) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   
@@ -24,6 +27,7 @@ const NavLink = ({ href, children }: NavLinkProps) => {
           : "hover:bg-secondary text-foreground/80 hover:text-foreground"
       }`}
     >
+      {icon && <span className="mr-2">{icon}</span>}
       {children}
     </Link>
   );
@@ -53,6 +57,11 @@ export function Navbar() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const isDoctor = profile?.role === "doctor";
   
+  const { unreadCount } = useMessages({
+    fetchUserDetails: false,
+    autoRefresh: false
+  });
+
   const toggleProfileMenu = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
   };
@@ -104,13 +113,23 @@ export function Navbar() {
           {isDoctor ? (
             // Doctor navigation links
             <>
-              <DoctorNavLink href="/dashboard">Dashboard</DoctorNavLink>
+              <DoctorNavLink href="/doctor">Dashboard</DoctorNavLink>
               <DoctorNavLink href="/doctor/analytics">Analytics</DoctorNavLink>
               <DoctorNavLink href="/doctor/appointments">Appointments</DoctorNavLink>
               <DoctorNavLink href="/doctor/patients">Patients</DoctorNavLink>
               <DoctorNavLink href="/doctor/schedule">Schedule</DoctorNavLink>
               <DoctorNavLink href="/doctor/consultations">Consultations</DoctorNavLink>
-             
+              <DoctorNavLink href="/messaging">
+                <span className="flex items-center">
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </span>
+              </DoctorNavLink>
             </>
           ) : (
             // Patient/regular navigation links
@@ -119,6 +138,17 @@ export function Navbar() {
               <NavLink href="/doctors">Find Doctors</NavLink>
               <NavLink href="/appointments">My Appointments</NavLink>
               <NavLink href="/health-records">Health Records</NavLink>
+              <NavLink href="/messaging">
+                <span className="flex items-center">
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  Messages
+                  {unreadCount > 0 && (
+                    <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </span>
+              </NavLink>
               <NavLink href="/about">About</NavLink>
               <NavLink href="/contact">Contact</NavLink>
             </>
@@ -221,7 +251,7 @@ export function Navbar() {
                     // Doctor profile menu items
                     <>
                       <Link
-                        href="/dashboard"
+                        href="/doctor"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
@@ -273,6 +303,14 @@ export function Navbar() {
                       >
                         Dashboard
                       </Link>
+                      <NavLink href="/messaging" >
+                        Messages
+                        {unreadCount > 0 && (
+                          <span className="ml-2 bg-red-500 text-white text-xs font-bold rounded-full px-2 py-1 min-w-[20px] text-center">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </NavLink>
                       <Link
                         href="/profile"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"

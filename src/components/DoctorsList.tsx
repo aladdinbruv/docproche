@@ -1,3 +1,5 @@
+'use client';
+
 import { memo, useMemo } from 'react';
 import { LazyDoctorCard } from './LazyComponents';
 import { User } from '@/types/supabase';

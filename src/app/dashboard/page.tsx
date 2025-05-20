@@ -9,7 +9,7 @@ import { Prescription, Appointment } from "@/types/supabase";
 import { createClientComponentClient } from "@/lib/supabase";
 import { usePayments } from "@/hooks/usePayments";
 import { PaymentSummary } from "@/components";
-import { FileText, Clipboard, DollarSign, Settings } from "lucide-react";
+import { FileText, Clipboard, DollarSign, Settings, MessageSquare } from "lucide-react";
 import { DashboardCard } from "@/components/ui/dashboard-card";
 
 // Define interfaces for types used in the component
@@ -393,12 +393,21 @@ export default function DashboardPage() {
                       >
                         {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                       </span>
-                      <Link 
-                        href={`/appointments/${appointment.id}`} 
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View details
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link 
+                          href={`/messaging?appointmentId=${appointment.id}`} 
+                          className="text-sm text-blue-600 hover:underline flex items-center"
+                        >
+                          <MessageSquare className="h-3 w-3 mr-1" />
+                          Message
+                        </Link>
+                        <Link 
+                          href={`/appointments/${appointment.id}`} 
+                          className="text-sm text-primary hover:underline"
+                        >
+                          View details
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}

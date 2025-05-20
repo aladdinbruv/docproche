@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { Pill, FileText, ShieldCheck, Activity } from 'lucide-react';
 
