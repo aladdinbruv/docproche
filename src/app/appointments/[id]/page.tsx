@@ -17,8 +17,9 @@ interface AppointmentDetailsProps {
 }
 
 export default function AppointmentDetailsPage({ params }: AppointmentDetailsProps) {
-  // Access id directly from params since we're using the client component pattern
-  const appointmentId = params.id;
+  // Use React.use() to unwrap the params Promise
+  const resolvedParams = React.use(params);
+  const appointmentId = resolvedParams.id;
   
   const [appointment, setAppointment] = useState<any>(null);
   const [loading, setLoading] = useState(true);

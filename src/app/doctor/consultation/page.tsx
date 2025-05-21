@@ -11,26 +11,18 @@ import {
   MicOff,
   VideoOff,
   Phone,
-  X,
   MessageSquare,
   FileText,
   User,
-  ClipboardList,
   FilePlus,
   Save,
   Calendar,
   Clock,
-  Pill,
-  Activity,
   AlertCircle,
-  Settings,
-  Volume2,
-  VolumeX,
   ArrowLeft,
   CheckCircle2,
-  Edit,
 } from "lucide-react";
-import { FaStethoscope, FaPrescriptionBottle, FaNotesMedical, FaFileMedical } from "react-icons/fa";
+import { FaStethoscope } from "react-icons/fa";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useAppointments } from "@/hooks/useAppointments";
@@ -112,7 +104,7 @@ export default function DoctorConsultationPage() {
     localTracks,
     remoteParticipants,
     isConnecting,
-    error: videoError,
+    error,
     joinRoom,
     leaveRoom,
     toggleAudio,
@@ -167,6 +159,27 @@ export default function DoctorConsultationPage() {
     }
   }, [localTracks]);
 
+  // Handle room disconnection events
+  useEffect(() => {
+    if (room) {
+      const handleDisconnected = () => {
+        console.log('Room disconnected. The doctor was disconnected from the video call.');
+        
+        // If still marked as active but room disconnected, show reconnection UI
+        if (isCallActive) {
+          alert('You were disconnected from the call. You can rejoin if needed.');
+          setIsCallActive(false);
+        }
+      };
+      
+      room.on('disconnected', handleDisconnected);
+      
+      return () => {
+        room.off('disconnected', handleDisconnected);
+      };
+    }
+  }, [room, isCallActive]);
+
   const fetchAppointmentDetails = async () => {
     setIsLoading(true);
     try {
@@ -220,26 +233,77 @@ export default function DoctorConsultationPage() {
     if (!appointment) return;
     
     try {
+      console.log(`Doctor starting video call for appointment: ${appointment.id}`);
       setIsCallActive(true);
       
-      await joinRoom(
+      console.log(`Joining room as doctor-${profile?.id || user?.id}`);
+      const joinedRoom = await joinRoom(
         appointment.id,
         `doctor-${profile?.id || user?.id}`
       );
       
-      // Update appointment status to in-progress (optional)
-      await updateAppointmentStatus(appointment.id, 'in-progress');
+      console.log('Successfully connected to video room:', joinedRoom?.name);
+      
+      // Update appointment status to in-progress
+      const statusUpdated = await updateAppointmentStatus(appointment.id, 'in-progress');
+      
+      if (statusUpdated) {
+        console.log('Appointment status updated to in-progress');
+        // Update local appointment state
+        setAppointment((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            status: 'in-progress'
+          };
+        });
+      } else {
+        console.warn('Failed to update appointment status');
+      }
       
     } catch (error) {
       console.error('Error starting video call:', error);
-      alert('Could not start video call. Please try again.');
+      
+      // More detailed error message based on error type
+      let errorMessage = 'Could not start video call. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Permission denied')) {
+          errorMessage = 'Please allow camera and microphone access to start the video call.';
+        } else if (error.message.includes('getUserMedia')) {
+          errorMessage = 'Could not access camera or microphone. Please check your device settings.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network connection issue. Please check your internet connection.';
+        }
+      }
+      
+      alert(errorMessage);
       setIsCallActive(false);
     }
   };
 
   const endCall = () => {
+    if (!room) {
+      console.log('No active room to disconnect from');
+      setIsCallActive(false);
+      return;
+    }
+    
+    console.log(`Doctor ending call for room: ${room.name}`);
+    
+    // Clean up properly
     leaveRoom();
+    
+    // Reset state
     setIsCallActive(false);
+    
+    console.log('Video call ended successfully');
+    
+    // Optionally update appointment status
+    if (appointment?.status === 'in-progress') {
+      console.log('Updating appointment status after call end');
+      // Keep status as in-progress since consultation may continue
+    }
   };
 
   const addChatMessage = (text: string, sender: 'doctor' | 'patient') => {

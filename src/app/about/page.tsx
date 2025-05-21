@@ -1,4 +1,3 @@
-
 "use client";
 
 import { motion } from "framer-motion";
@@ -86,7 +85,7 @@ export default function AboutPage() {
             
             <div className="space-y-24 relative">
               <TimelineItem 
-                year="2023" 
+                year="2024" 
                 title="Foundation" 
                 description="DocToProche was established with a vision to transform healthcare scheduling and access."
                 position="left"
@@ -94,7 +93,7 @@ export default function AboutPage() {
               />
               
               <TimelineItem 
-                year="2023" 
+                year="2024" 
                 title="Platform Launch" 
                 description="Our first version of the appointment platform was launched, connecting patients with doctors in major cities."
                 position="right"
@@ -102,7 +101,7 @@ export default function AboutPage() {
               />
               
               <TimelineItem 
-                year="2024" 
+                year="2025" 
                 title="Expanding Services" 
                 description="Added telemedicine capabilities and expanded our network of healthcare providers to include specialists across multiple disciplines."
                 position="left"
@@ -138,30 +137,16 @@ export default function AboutPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <TeamMember 
-              name="Dr. Sarah Johnson"
-              role="Chief Medical Officer"
-              image="https://randomuser.me/api/portraits/women/76.jpg"
-              bio="Board-certified physician with 15+ years of experience in healthcare management and medical innovations."
-              delay={0.3}
-            />
-            
-            <TeamMember 
-              name="Michael Chen"
-              role="Chief Technology Officer"
-              image="https://randomuser.me/api/portraits/men/32.jpg"
-              bio="Technology expert with a background in developing healthcare systems and AI applications for medical diagnostics."
-              delay={0.4}
-            />
-            
-            <TeamMember 
-              name="Emily Rodriguez"
-              role="Head of Patient Experience"
-              image="https://randomuser.me/api/portraits/women/45.jpg"
-              bio="Healthcare administrator focused on creating seamless, patient-centered experiences in digital health platforms."
-              delay={0.5}
-            />
+          <div className="flex justify-center">
+            <div className="max-w-md w-full">
+              <TeamMember 
+                name="Alaaeddine barakat"
+                role="Founder and Developer of DocToProche"
+                image="/images/dashinobi.webp"
+                bio="Full-stack developer with expertise in healthcare technology solutions, dedicated to improving patient care through innovative digital platforms."
+                delay={0.4}
+              />
+            </div>
           </div>
         </div>
       </section>
